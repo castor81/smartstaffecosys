@@ -145,6 +145,23 @@ summary::-webkit-details-marker { display: none; }
 .road.weak { stroke-dasharray: 7 5; stroke-width: 1.4px; opacity: .5; }
 .area-name { fill: #ffffff55; font: 600 12px system-ui, sans-serif; letter-spacing: .12em; text-transform: uppercase; }
 
+/* real area of operations */
+.real .ground { fill: #12262a; }
+.tile { pointer-events: none; }
+.mgrs-line { fill: none; stroke: #f2d27a; stroke-width: 1px; opacity: .55; vector-effect: non-scaling-stroke; }
+.mgrs-line.square { stroke: #ffe9ad; stroke-width: 1.8px; opacity: .9; }
+.mgrs-line.zone { stroke: #fff; stroke-width: 1.6px; opacity: .8; }
+.mgrs-number, .mgrs-square, .ao-point text { fill: #ffe3a6; font: 700 11px var(--mono); text-anchor: middle; paint-order: stroke; stroke: #000; stroke-width: 3px; }
+.mgrs-square { fill: #fff; font-size: 14px; letter-spacing: .1em; opacity: .8; }
+.ao-outline { fill: #f2b4410f; stroke: var(--amber); stroke-width: 2.5px; vector-effect: non-scaling-stroke; }
+.ao-point circle { fill: var(--amber); stroke: #07131c; stroke-width: 1.5px; }
+.ao-point text { fill: var(--amber); text-anchor: start; }
+.ao-credit { position: absolute; left: 6px; bottom: 32px; z-index: 6; max-width: 52%; padding: 2px 6px; border-radius: 4px; background: rgba(8, 14, 13, .82); font-size: 9px; line-height: 1.35; color: var(--muted); }
+.ao-credit summary { cursor: pointer; color: var(--ink); }
+.aobtn { flex: none; display: flex; align-items: center; justify-content: center; height: 36px; min-width: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--ink); text-decoration: none; white-space: nowrap; }
+.aobtn:hover { border-color: var(--green); }
+.aobtn span { margin-left: 6px; }
+
 /* plan graphics (sizes in screen pixels via --u = map units per pixel) */
 .boundary { stroke: #e4efe9; stroke-width: 1.6px; stroke-dasharray: 14 5 3 5; vector-effect: non-scaling-stroke; fill: none; opacity: .65; }
 .boundary.inner { opacity: .45; }
@@ -276,6 +293,13 @@ dialog textarea { display: block; width: 100%; margin-top: 4px; }
   #step::before { content: "⏭"; font-size: 13px; }
   .status { font-size: 12px; line-height: 1.25; }
   .map-title { display: none; }
+  .real .map-title { display: block; left: 6px; top: 6px; transform: none; max-width: calc(100% - 52px); overflow: hidden; text-overflow: ellipsis; font-size: 10px; padding: 2px 6px; }
+  .real .coabar { top: 30px; }
+  .ao-credit { max-width: 70%; }
+  .brand svg { display: none; }
+  .brand h1 { letter-spacing: 0; }
+  .aobtn { padding: 0; }
+  .aobtn span { display: none; }
   .map-tools { gap: 4px; }
   .map-tools button, .layers summary { width: 32px; height: 32px; }
   .map-actions button { padding: 4px 9px; font-size: 12px; }

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0b1210">
+  <title>SmartStaffEcosys v0.6 – Google 3D (saját kulccsal)</title>
+  <link rel="stylesheet" href="cp.css">
+  <link rel="stylesheet" href="globe.css">
+</head>
+<body class="globepage">
+  <div id="banner" class="banner">NYÍLT / GYAKORLÓ · csak gyakorló vagy fiktív terület · külső szolgáltatás: Google</div>
+  <header class="ghead">
+    <a class="back" href="globe.html" aria-label="Vissza a nyílt földgömbhöz">←</a>
+    <div class="gtitle"><h1>Google 3D</h1><p>SmartStaffEcosys · v0.6 · 2026-11-25</p></div>
+  </header>
+
+  <main id="consent" class="consent panel">
+    <h2>Mielőtt a Google betöltődik</h2>
+    <ul>
+      <li>A Google Maps Platform feltételei tiltják többek között a magas kockázatú tevékenységeket (a meghatározás a fegyverek létrehozását és működtetését is említi), az ITAR hatálya alá eső tevékenységet és az exportellenőrzési szabályok megsértését. Hogy a te felhasználásod megfelel-e, azt az intézmény jogásza tudja megítélni. <a href="https://cloud.google.com/terms/maps-platform/eea" target="_blank" rel="noopener">Google Maps Platform EGT-feltételek</a></li>
+      <li>A Google látja, melyik területet nézed. A Google kódja ezen az oldalon fut, ezért hozzáférhet ahhoz is, amit ez a program ebben a böngészőben tárol (tereppontok, helyi demó).</li>
+      <li>A saját API-kulcsodra a Google díjat számíthat fel. A kulcs csak ebben a böngészőben tárolódik. A Google Cloud konzolban korlátozd ennek a webhelynek a címére és a Maps JavaScript API-ra.</li>
+      <li>EGT-s számlázás esetén a fotorealisztikus 3D csempék nem érhetők el; a 3D térkép lefedettsége országonként eltér.</li>
+    </ul>
+    <form id="start">
+      <label>Google Maps API-kulcs <input type="password" id="key" autocomplete="off" spellcheck="false" required minlength="20" maxlength="100"></label>
+      <label class="check"><input type="checkbox" id="agree" required> Elolvastam; csak gyakorló vagy fiktív területet nézek, és a feltételek szerint használom.</label>
+      <div class="row wrap">
+        <button type="submit" class="primary">Google 3D betöltése</button>
+        <button type="button" id="forget">Tárolt kulcs törlése</button>
+      </div>
+    </form>
+    <p id="status" class="summary bad" role="status"></p>
+  </main>
+
+  <main id="view" class="gmain" hidden>
+    <section class="globewrap panel" aria-label="Google 3D térkép">
+      <div class="mapholder"><div id="map3d" class="globe"></div></div>
+      <div class="gactions">
+        <button type="button" id="tap" aria-pressed="false">Koppintásos felvitel</button>
+        <button type="button" id="regrid">MGRS-rács a nézetre</button>
+      </div>
+    </section>
+    <aside class="side panel">
+      <p id="gridinfo" class="note"></p>
+      <ol id="points" class="points"></ol>
+      <p id="summary" class="summary" role="status"></p>
+      <div class="row wrap">
+        <button type="button" id="apply" class="primary">Betöltés a harcvezető központba</button>
+        <button type="button" id="undo">Utolsó pont törlése</button>
+      </div>
+      <p class="note">A tereppontok közösek a nyílt földgömb oldallal; nevet adni és sorrendet módosítani ott lehet.</p>
+    </aside>
+  </main>
+  <script type="module" src="google.js"></script>
+</body>
+</html>

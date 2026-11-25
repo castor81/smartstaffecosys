@@ -1,8 +1,8 @@
-# SmartStaffEcosys v0.5 (2026-11-25)
+# SmartStaffEcosys v0.6 (2026-11-25)
 
-Katonai törzs tervezési folyamatának (MDMP) fejlesztési alapja: harcvezető központ nézet (térkép, JCHAT, döntési ablak), gépi folyamatleírás, adatbázis belépéssel és döntési kapukkal, valamint n8n-futtató az első két szakaszra. A pilot szint a dandártörzs.
+Katonai törzs tervezési folyamatának (MDMP) fejlesztési alapja: harcvezető központ nézet (térkép, JCHAT, döntési ablak), műveleti terület földgömbön MGRS-ráccsal, gépi folyamatleírás, adatbázis belépéssel és döntési kapukkal, valamint n8n-futtató az első két szakaszra. A pilot szint a dandártörzs.
 
-Verziók: webfelület és közös gyakorlat (adatbázis-kiegészítés) v0.5; folyamatdefiníció, alapséma, promptok és n8n-futtató változatlanul v0.3.
+Verziók: webfelület v0.6; közös gyakorlat (adatbázis-kiegészítés) v0.5; folyamatdefiníció, alapséma, promptok és n8n-futtató változatlanul v0.3.
 
 **Csak nyílt vagy fiktív adat.** A tároló nem tartalmazhat minősített, nem nyilvános vagy személyes adatot, sem forrás-PDF-eket. A gyakorló parancs teljesen kitalált.
 
@@ -11,6 +11,9 @@ Verziók: webfelület és közös gyakorlat (adatbázis-kiegészítés) v0.5; fo
 | Elem | Állapot |
 | --- | --- |
 | Harcvezető központ (`index.html`) | szimuláció előre megírt fiktív üzenetekkel; 390 px-től 1600 px-ig tesztelve |
+| MGRS/UTM-számítás (`mgrs.js`) | 37 904 ponton egyezik a pyproj és a GeoTrans-alapú `mgrs` csomag eredményével (az MGRS-szövegben 27 pontnál 1 m eltérés méterhatáron) |
+| Földgömb, műveleti terület (`globe.html`) | böngészőben tesztelve helyettesítő műholdcsempékkel; a valódi EOX-szolgáltatással még nem |
+| Google 3D (`google.html`) | opcionális, saját kulccsal; csak helyettesítő programmal tesztelve, a valódi Google-szolgáltatással nem |
 | Folyamatdefiníció, motor, folyamatnézet | tesztelve |
 | Adatbázis-séma, API, jogosultságok (v0.3) | tesztelve; Supabase-re telepítve, külön `sse` sémába |
 | Közös, többfelhasználós gyakorlat (v0.5) | helyi PostgreSQL 16-on, három böngészővel tesztelve; Supabase-re feltöltve, tagot még a rendszergazdának kell felvennie |
@@ -24,7 +27,13 @@ Verziók: webfelület és közös gyakorlat (adatbázis-kiegészítés) v0.5; fo
 | `tools/build_process.py` | A folyamat egyetlen forrása; ellenőrzi és generálja a JSON-t, a seedet és a demóadatot |
 | `public/data/process.json` | 8 szakasz, 55 allépés, 12 döntési kapu, agentek, törzsszintek, profilok |
 | `public/index.html`, `cp.js`, `cp.css` | Harcvezető központ (nincs háttérszolgáltatás, nincs MI-hívás) |
-| `public/map.js` | Fiktív terep SVG-ben: nagyítás, mozgatás, jelek |
+| `public/map.js` | Térkép SVG-ben: fiktív terep vagy valós műveleti terület MGRS-ráccsal; nagyítás, mozgatás, jelek |
+| `public/mgrs.js` | WGS84 ↔ UTM ↔ MGRS és a rácsvonalak; saját kód, függőség nélkül |
+| `public/ao.js` | Műveleti terület: tereppontok, ellenőrzés, méret, síkvetület |
+| `public/globe.html`, `globe.js`, `globe.css` | Földgömb (MapLibre GL JS), tereppontok, MGRS-rács |
+| `public/google.html`, `google.js` | Opcionális Google 3D nézet saját API-kulccsal |
+| `public/vendor/` | MapLibre GL JS 6.19.0 (BSD-3-Clause, a licencfájl mellékelve) |
+| `public/data/countries.geojson` | Natural Earth határrajz (közkincs); `tools/build_countries.mjs` állítja elő |
 | `public/scenario.js` | Fiktív forgatókönyv: elemek, hálók, üzenetek, COA-vázlatok, események |
 | `public/sim.js` | A JCHAT és a térképi helyzet levezetése a motor naplójából |
 | `public/room.js`, `shared.js`, `api.js` | Közös gyakorlat: eseménylista visszajátszása, belépés, lekérdezés |
@@ -45,7 +54,7 @@ Verziók: webfelület és közös gyakorlat (adatbázis-kiegészítés) v0.5; fo
 ```bash
 python3 tools/build_process.py          # definíció ellenőrzése és generálása
 python3 tools/build_n8n.py              # n8n-kód generálása
-node --test tests/*.test.mjs            # motortesztek (Node 20+)
+node --test tests/*.test.mjs            # motor-, MGRS- és területtesztek (Node 20+)
 bash db/test/run.sh                     # séma-, API-, közös gyakorlat és adatfolyam-teszt (PostgreSQL 16)
 python3 -m http.server -d public 8000   # http://localhost:8000
 ```
@@ -61,6 +70,26 @@ A TERDEF wargaming platform felépítését követi (központi térkép, JCHAT, 
 - **＋ Esemény**: gyakorlatvezetői esemény elhelyezése a térképen.
 
 Határok: a forgatókönyv közlései, a helyzet és a mozgás előre megírt. A beírt szöveget semmi nem értelmezi, a nyugtázás szimulált. A helyi demó állapota egyetlen böngészőben él. A térképjelek egyszerűsítettek, nem teljes APP-6 jelkészlet.
+
+## Műveleti terület: földgömb és MGRS (v0.6)
+
+A harcvezető központ **🌍 Műveleti terület** gombja nyitja meg.
+
+1. Tereppontok felvétele a célkeresztnél, koppintással, vagy beírt MGRS-, illetve földrajzi koordinátával (`34T CT 52397 62357` vagy `47.5, 19.05`). A pontok körbejárási sorrendben alkotják a határvonalat; 3–30 pont, legfeljebb 600 km átmérő.
+2. **Betöltés a harcvezető központba**: a térkép a valós területet mutatja MGRS-ráccsal. A Rétegek menüben bármikor visszakapcsolható a fiktív terep.
+3. A terület JSON-fájlba menthető és onnan visszatölthető.
+
+- Az MGRS-rács saját számítás (WGS84, 80° D – 84° É; a sarkvidéki UPS-rács nincs benne). A nézet szélességétől függően övezet, 100 km, 10 km, 1 km vagy 100 m sűrűségű. Tervezési segédlet, nem hitelesített térkép.
+- **A forgatókönyv jelei vázlatosan kerülnek a valós területre**: a helyük, a folyó- és átkelőhely-nevek a fiktív terephez tartoznak, nem a valós domborzathoz.
+- A terület csak az adott böngészőben tárolódik. Közös gyakorlatban minden résztvevő továbbra is a fiktív terepet látja.
+- Külső kérés: bekapcsolt műholdképnél a böngésző a `tiles.maps.eox.at` címről tölt csempéket, ebből a szolgáltató látja a nézett területet. A **Műhold** kapcsoló kikapcsolásával a földgömb külső kérés nélkül, határrajzzal és ráccsal működik. Bizalmas+ állapotban a műholdkép és a Google tiltva van.
+- Műholdkép: [EOxCloudless](https://cloudless.eox.at) by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016 & 2017), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). A 2016-os réteg szerepel a kódban; az újabb évjáratok nem kereskedelmi licencűek.
+
+### Google 3D (opcionális)
+
+A földgömb **Google 3D…** hivatkozása külön oldalt nyit. A Google-ből semmi nem töltődik be, amíg a felhasználó meg nem adja a saját API-kulcsát (Maps JavaScript API, számlázással) és el nem fogadja a tájékoztatót. A kulcs csak a böngészőben tárolódik; a tárolóba nem kerülhet. A kulcsot a Google Cloud konzolban a webhely címére és erre az API-ra kell korlátozni.
+
+Használat előtt a [Google Maps Platform EGT-feltételeit](https://cloud.google.com/terms/maps-platform/eea) az intézmény jogászával érdemes megvizsgáltatni: a 2026-08-26-i változat tiltja a „High Risk Activities” körébe tartozó (a meghatározás a fegyverzetet is említi), az ITAR hatálya alá eső és az exportszabályokat sértő felhasználást. EGT-s számlázásnál a Photorealistic 3D Tiles nem érhető el. Ennek az oldalnak a tartalombiztonsági szabálya a Google igénye miatt lazább, mint a többié.
 
 ## Közös gyakorlat (v0.5)
 
@@ -83,7 +112,7 @@ select sse.remove_member('valaki@pelda.hu');
 
 1. A Supabase-projekt SQL-szerkesztőjében sorban: `sse_schema`, `sse_gate_seed`, `sse_api`, `sse_shared`. Meglévő projektbe is telepíthető: minden tábla az `sse` sémában van, a `public` sémába csak `sse_` előtagú függvények kerülnek.
 2. Authentication → Users → Add user, majd tag felvétele (`sse.add_member`, lásd fent); a futtató kipróbálásához a `sse_demo_setup` fájl. Új projektnél a nyilvános regisztráció legyen kikapcsolva; törzsbeosztás nélküli fiók semmit nem lát.
-3. `public/config.js`: projekt-URL és **publishable** kulcs. `vercel.json`: a CSP-be `connect-src 'self' https://<projekt>.supabase.co`.
+3. `public/config.js`: projekt-URL és **publishable** kulcs. `vercel.json`: az első szabály CSP-jében a `connect-src` Supabase-címe `https://<projekt>.supabase.co`.
 4. n8n: a futtatóban a `supabaseUrl`, egy új Supabase-hitelesítő (secret kulcs) minden HTTP node-on, és a kívánt OpenAI-hitelesítő.
 5. Futtatás → döntés a `live.html` ablakában → újabb futtatás. WF-01 két, WF-02 két döntési pontig vezet.
 
@@ -106,6 +135,8 @@ Egyirányú kapcsoló: bekapcsolva minden külső adapter tiltott, és helyi ada
 ## Ismert korlátok
 
 - Csak az 1. és 2. MDMP-szakasz van automatizálva.
+- A valós műveleti terület csak a helyi demóban jelenik meg; a közös gyakorlatban és az agentek bemenetében még nem szerepel.
+- A földgömbhöz WebGL kell. Domborzat, térképi nevek és utak a nyílt rétegben nincsenek (a határrajz és a műholdkép látható).
 - A harcvezető központ még nincs összekötve a futtatóval (a közös gyakorlat külön szimuláció).
 - A közös gyakorlatban két egyidejűleg lejátszó vezető gyorsabban léptet; a gyakorlat legfeljebb 3000 esemény.
 - A harcvezető központ a dandár pilothoz készült; más törzsszint csak a folyamatnézetben választható.

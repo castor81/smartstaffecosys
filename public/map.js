@@ -1,5 +1,7 @@
-// Fictitious terrain drawn as SVG, with pan, pinch zoom and tappable features. No external tiles.
+// The map as SVG, with pan, pinch zoom and tappable features. The ground is either the fictitious
+// terrain (no external requests) or a chosen real area with its MGRS grid and optional satellite tiles.
 import { TERRAIN, UNITS } from './scenario.js';
+import { layout } from './ao.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const W = 1000;
@@ -49,6 +51,38 @@ function terrain() {
   return g;
 }
 
+/** A real area of operations: tiles (if allowed), MGRS grid, outline and its terrain points. */
+function realTerrain(picture, imagery) {
+  const g = s('g', { class: 'terrain real' });
+  g.append(s('rect', { x: -3000, y: -3000, width: 7000, height: 6700, class: 'ground' }));
+  if (imagery) {
+    // Half a unit of overlap hides the seams between the tiles.
+    for (const t of picture.tiles) g.append(s('image', { href: t.url, x: t.x, y: t.y, width: t.size + 0.5, height: t.size + 0.5, preserveAspectRatio: 'none', class: 'tile' }));
+  }
+  for (const l of picture.grid.lines) g.append(s('path', { d: line(l.path), class: `mgrs-line ${l.kind}` }));
+  g.append(s('path', { d: `${line(picture.outline.map((p) => p.at))} Z`, class: 'ao-outline' }));
+  for (const l of picture.grid.labels) {
+    if (l.kind === 'square') g.append(s('g', { 'data-x': l.xy[0], 'data-y': l.xy[1] }, text(l.text, { class: 'mgrs-square' })));
+  }
+  for (const p of picture.outline) {
+    g.append(s('g', { 'data-x': p.at[0], 'data-y': p.at[1], class: 'ao-point' }, s('circle', { r: 3.5 }), text(p.name, { x: 6, y: -6 })));
+  }
+  return g;
+}
+
+/** Where a nearly straight line crosses x (axis 0) or y (axis 1) = value; null if it does not. */
+function crossing(path, axis, value) {
+  for (let i = 1; i < path.length; i += 1) {
+    const a = path[i - 1];
+    const b = path[i];
+    if ((a[axis] - value) * (b[axis] - value) <= 0 && a[axis] !== b[axis]) {
+      const t = (value - a[axis]) / (b[axis] - a[axis]);
+      return a[1 - axis] + t * (b[1 - axis] - a[1 - axis]);
+    }
+  }
+  return null;
+}
+
 function friendlySymbol(unit, ghost) {
   const g = s('g', { class: `sym friend${ghost ? ' ghost' : ''}` });
   g.append(s('rect', { x: -16, y: -11, width: 32, height: 22, class: 'frame' }));
@@ -85,7 +119,11 @@ export function createMap(host, { onSelect }) {
     ...['1', '2', '3', 'adj'].map((n) => s('marker', { id: `head-${n}`, viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 4.5, markerHeight: 4.5, orient: 'auto-start-reverse' }, s('path', { d: 'M0,0 L10,5 L0,10 Z', class: `head coa${n}` }))),
     s('marker', { id: 'head-red', viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 4.5, markerHeight: 4.5, orient: 'auto-start-reverse' }, s('path', { d: 'M0,0 L10,5 L0,10 Z', class: 'head red' }))));
   const layers = {};
-  svg.append(terrain());
+  let ground = terrain();
+  let real = null; // the layout of a real area, if one is shown
+  svg.append(ground);
+  const edgeLabels = s('g', { class: 'layer-edge' });
+  svg.append(edgeLabels);
   for (const id of ['plan', 'enemyplan', 'arrows', 'points', 'ghosts', 'units', 'enemy', 'incidents', 'ping']) {
     layers[id] = s('g', { class: `layer-${id}` });
     svg.append(layers[id]);
@@ -112,7 +150,32 @@ export function createMap(host, { onSelect }) {
     scale *= px < 560 ? 0.82 : 1;
     svg.style.setProperty('--u', String(view.w / px));
     for (const n of svg.querySelectorAll('[data-x]')) place(n);
-    host.dispatchEvent(new CustomEvent('mapview', { detail: { pxPerKm: (10 * px) / view.w } }));
+    labelGrid();
+    // The fictitious terrain has 10 units to the kilometre.
+    host.dispatchEvent(new CustomEvent('mapview', { detail: { pxPerKm: px / view.w / (real ? real.kmPerUnit : 0.1), real: Boolean(real) } }));
+  }
+  /** Grid numbers stay along the lower and the left edge of the picture. */
+  function labelGrid() {
+    edgeLabels.replaceChildren();
+    if (!real || real.step >= 100000) return;
+    const unit = view.w / size().w; // map units per screen pixel
+    const bottom = view.y + view.h - 78 * unit;
+    const left = view.x + 14 * unit;
+    const used = { e: [], n: [] };
+    for (const l of real.grid.lines) {
+      if (!l.axis) continue;
+      const along = l.axis === 'e' ? 0 : 1;
+      const at = crossing(l.path, 1 - along, along === 0 ? bottom : left);
+      if (at === null || at < (along === 0 ? view.x + 36 * unit : view.y + 28 * unit) || at > (along === 0 ? view.x + view.w - 52 * unit : view.y + view.h - 96 * unit)) continue;
+      if (used[l.axis].some((v) => Math.abs(v - at) < 24 * unit)) continue;
+      used[l.axis].push(at);
+      const x = along === 0 ? at : left;
+      const y = along === 0 ? bottom : at;
+      const value = String(Math.floor((l.value % 100000) / Math.min(1000, real.step))).padStart(real.step < 1000 ? 3 : 2, '0');
+      const node = s('g', { 'data-x': x, 'data-y': y }, text(value, { class: 'mgrs-number', y: 4 }));
+      edgeLabels.append(node);
+      place(node);
+    }
   }
   function fit([x0, y0, x1, y1]) {
     const { w, h } = size();
@@ -123,7 +186,28 @@ export function createMap(host, { onSelect }) {
     Object.assign(view, { x: (x0 + x1) / 2 - bw / 2, y: (y0 + y1) / 2 - bh / 2, w: bw, h: bh });
     apply();
   }
-  const home = () => fit(size().w < 700 ? [25, 50, 560, 560] : [10, 20, 990, 680]);
+  const home = () => {
+    if (!real) return fit(size().w < 700 ? [25, 50, 560, 560] : [10, 20, 990, 680]);
+    // The whole area and the whole schematic picture.
+    const xs = real.outline.map((p) => p.at[0]);
+    const ys = real.outline.map((p) => p.at[1]);
+    return fit([Math.min(20, ...xs), Math.min(20, ...ys), Math.max(980, ...xs), Math.max(680, ...ys)]);
+  };
+  let shownArea = '';
+  /** Shows a real area (or, with null, the fictitious terrain) under the schematic symbols. */
+  function setArea(area, { imagery = false } = {}) {
+    const key = area ? JSON.stringify([area, imagery]) : '';
+    if (key === shownArea) return real;
+    const moved = JSON.stringify(area) !== JSON.stringify(real?.area ?? null);
+    shownArea = key;
+    real = area ? { ...layout(area, W, H, 0.04), area } : null;
+    const next = real ? realTerrain(real, imagery) : terrain();
+    svg.replaceChild(next, ground);
+    ground = next;
+    svg.setAttribute('aria-label', real ? `${area.name}: valós terep MGRS-ráccsal, vázlatosan elhelyezett jelekkel` : 'Fiktív gyakorló terep vázlata');
+    if (moved && host.clientWidth) home(); else apply();
+    return real;
+  }
   /** Fits a box into the part of the panel that is not covered at the bottom. */
   function frame([x0, y0, x1, y1], inset = 0) {
     const { w, h } = size();
@@ -331,7 +415,7 @@ export function createMap(host, { onSelect }) {
   }).observe(host);
 
   return {
-    render, focus, home, frame, zoom,
+    render, focus, home, frame, zoom, setArea,
     pick(cb) { picking = cb; host.classList.add('picking'); },
     cancelPick() { picking = null; host.classList.remove('picking'); },
   };

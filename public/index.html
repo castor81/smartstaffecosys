@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#0b1210">
-  <title>SmartStaffEcosys v0.5 – harcvezető központ</title>
+  <title>SmartStaffEcosys v0.6 – harcvezető központ</title>
   <link rel="stylesheet" href="cp.css">
 </head>
 <body>
@@ -14,8 +14,9 @@
     <header class="top">
       <div class="brand">
         <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 29 8v10c0 6-6 10-13 12C9 28 3 24 3 18V8z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 9 23 21H9z" fill="currentColor"/></svg>
-        <div><h1>Harcvezető központ</h1><p id="subtitle">SmartStaffEcosys · v0.5 · 2026-11-25</p></div>
+        <div><h1>Harcvezető központ</h1><p id="subtitle">SmartStaffEcosys · v0.6 · 2026-11-25</p></div>
       </div>
+      <a id="ao-open" class="aobtn" href="globe.html" title="Műveleti terület: földgömb és MGRS-rács" aria-label="Műveleti terület kijelölése földgömbön">🌍<span> Műveleti terület</span></a>
       <div class="clockbox"><strong id="clock">–</strong><span id="hhour"></span></div>
       <details class="menu" id="menu">
         <summary aria-label="Menü">⋯</summary>
@@ -46,7 +47,8 @@
 
     <section id="mappanel" class="mappanel panel" aria-label="Közös műveleti kép">
       <div id="map" class="map"></div>
-      <div class="map-title">Közös műveleti kép · fiktív terep</div>
+      <div id="map-title" class="map-title">Közös műveleti kép · fiktív terep</div>
+      <details id="ao-credit" class="ao-credit" hidden><summary>© EOxCloudless · CC BY 4.0</summary><a href="https://cloudless.eox.at" target="_blank" rel="noopener">EOxCloudless https://cloudless.eox.at</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016 &amp; 2017) · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></details>
       <div id="coabar" class="coabar" hidden></div>
       <div class="map-tools">
         <button type="button" id="fs-map" aria-label="Térkép teljes képernyőn">⛶</button>
@@ -60,6 +62,7 @@
             <label class="check"><input type="checkbox" data-layer="enemy" checked> Ellenség</label>
             <label class="check"><input type="checkbox" data-layer="plan" checked> Tervjelek</label>
             <label class="check"><input type="checkbox" data-layer="incidents" checked> Események</label>
+            <label class="check" id="ao-row" hidden><input type="checkbox" id="ao-layer" checked> Valós terep (MGRS)</label>
           </div>
         </details>
       </div>
@@ -67,7 +70,7 @@
         <button type="button" id="wg-open" disabled>⚔ Hadijáték</button>
         <button type="button" id="inject">＋ Esemény</button>
       </div>
-      <div class="scalebar"><i id="scale-line"></i><span>5 km</span></div>
+      <div class="scalebar"><i id="scale-line"></i><span id="scale-text">5 km</span></div>
       <aside id="card" class="mapcard" hidden></aside>
       <div id="wargame" class="wargame" hidden>
         <div class="wg-head"><strong id="wg-name"></strong><button type="button" id="wg-close" aria-label="Hadijáték bezárása">✕</button></div>

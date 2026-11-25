@@ -3,13 +3,14 @@ import { createEngine } from './engine.js';
 import { decisionDialog, requestKey } from './decision.js';
 import { store, KEY } from './store.js';
 import { createMap } from './map.js';
+import { activeStore, checkArea, AO_KEY } from './ao.js';
 import { timeline, mapModel, elementStates, elementOf, roleElement, formatClock, formatH } from './sim.js';
 import { channelFor, ackFor, injectMessage, CONTROL_ROLES } from './room.js';
 import { exerciseId, joinDialog, connect, explain } from './shared.js';
 import { signedIn } from './api.js';
 import { ELEMENTS, GROUPS, CHANNELS, UNITS, TERRAIN, TURNS, COAS, INCIDENTS } from './scenario.js';
 
-const UI_VERSION = '0.5';
+const UI_VERSION = '0.6';
 const DEADLINE_MS = 120000;
 const $ = (id) => document.getElementById(id);
 const el = (tag, text, cls) => {
@@ -655,7 +656,45 @@ new ResizeObserver(() => { const f = $('feed'); if (ui.atBottom && f.clientHeigh
 $('zin').addEventListener('click', () => map.zoom(1 / 1.35));
 $('zout').addEventListener('click', () => map.zoom(1.35));
 $('zhome').addEventListener('click', () => map.home());
-$('map').addEventListener('mapview', (e) => { $('scale-line').style.width = `${Math.round(e.detail.pxPerKm * 5)}px`; });
+$('map').addEventListener('mapview', (e) => {
+  // The scale bar: 5 km on the fictitious terrain; on a real area a round length of fitting size.
+  const km = e.detail.real ? [200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1].find((v) => v * e.detail.pxPerKm <= 110) || 0.1 : 5;
+  $('scale-line').style.width = `${Math.round(e.detail.pxPerKm * km)}px`;
+  $('scale-text').textContent = km < 1 ? `${km * 1000} m` : `${km} km`;
+});
+
+/* ---------- area of operations ---------- */
+const AO_HIDDEN = 'sse-ao-hidden';
+const readFlag = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
+/**
+ * Puts the area chosen on the globe page under the map. Only in the local demo: in a shared exercise
+ * every participant sees the same fictitious terrain. Bizalmas+ stops the satellite tiles.
+ */
+function applyArea() {
+  const area = wanted ? null : activeStore.load();
+  const usable = Boolean(area) && checkArea(area).ok;
+  $('ao-row').hidden = !usable;
+  $('ao-layer').checked = readFlag(AO_HIDDEN) !== '1';
+  const on = usable && $('ao-layer').checked;
+  let sat = true;
+  try { sat = JSON.parse(readFlag('sse-globe-v1'))?.sat !== false; } catch { /* default */ }
+  const imagery = on && !locked() && sat;
+  const picture = map.setArea(on ? area : null, { imagery });
+  $('mappanel').classList.toggle('real', on);
+  if (imagery && $('ao-credit').hidden) $('ao-credit').open = window.matchMedia('(min-width: 761px) and (min-height: 561px)').matches;
+  $('ao-credit').hidden = !imagery;
+  const grid = picture && (picture.step >= 1000 ? `${picture.step / 1000} km` : `${picture.step} m`);
+  $('map-title').textContent = on ? `${area.name} · MGRS ${grid} · a jelek helye vázlatos` : 'Közös műveleti kép · fiktív terep';
+}
+$('ao-layer').addEventListener('change', () => {
+  try { if ($('ao-layer').checked) localStorage.removeItem(AO_HIDDEN); else localStorage.setItem(AO_HIDDEN, '1'); } catch { /* ignore */ }
+  applyArea();
+});
+// A change on the globe page in another tab, or coming back with the browser's back button.
+window.addEventListener('storage', (e) => { if (e.key?.startsWith(AO_KEY) || e.key === 'sse-globe-v1') applyArea(); });
+window.addEventListener('pageshow', (e) => { if (e.persisted) applyArea(); });
+// Leaving for the globe page would drop a shared exercise, so there it opens in a new tab.
+if (wanted) { $('ao-open').target = '_blank'; $('ao-open').rel = 'noopener'; }
 for (const box of document.querySelectorAll('[data-layer]')) {
   box.addEventListener('change', () => { ui.layers[box.dataset.layer] = box.checked; render(); });
 }
@@ -712,6 +751,7 @@ $('conf').addEventListener('change', () => {
     $('menu').open = false;
   }
   render();
+  applyArea(); // Bizalmas+ also stops the satellite tiles
 });
 $('reset').addEventListener('click', () => {
   if (!window.confirm('Új gyakorlat: a közlések, események és döntések törlődnek. Folytatod?')) return;
@@ -730,6 +770,7 @@ $('reset').addEventListener('click', () => {
   dialog.reset();
   $('menu').open = false;
   render();
+  applyArea();
   map.home();
 });
 // The process view (or another tab) changed the local demo state.
@@ -777,6 +818,7 @@ async function start() {
   const initial = timeline(process, engine.state.log, extras);
   for (const m of initial.messages) rendered.add(m.id);
   render();
+  applyArea();
   renderChat(true);
   // A request that was already open does not pop up again in the local demo; a shared one does.
   if (!wanted) lastKey = requestKey(engine); else settle();
