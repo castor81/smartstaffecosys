@@ -43,4 +43,6 @@ A demóban a zár csak a böngészőben él: bemutatja a viselkedést, de nem bi
 - A `hq`, `person` és `role_assignment` táblákon még nincs sorszintű hozzáférés-szabály.
 - A bejelentkezett személy azonosítását a háttérszolgáltatásnak kell elvégeznie.
 - Forrás: US FM 5-0 és FM 6-0, szerkezeti hivatkozásokkal. Magyar nemzeti szabályzó nincs beépítve.
+- A D9 kaput a műveleti főnök dönti el; a parancsnoki beavatkozás esete (FM 5-0 6-23) még nincs külön kezelve. A D10 delegálása (6-32) szintén hiányzik.
+- Az FM 6-0 8-23 és 8-24 eltérően ír a dandár tervező cellájáról; a profil a 8-23-at követi.
 - A „tervezési szabály” jellegű elemek (kapukiosztás, COA-darabszám) projektjavaslatok, nem doktrína.
