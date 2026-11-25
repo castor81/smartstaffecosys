@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>SmartStaffEcosys v0.2 – demó</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="banner" class="banner">NYÍLT / GYAKORLÓ – kizárólag fiktív adat · szimuláció, MI-hívás nélkül</div>
+  <header>
+    <h1>SmartStaffEcosys</h1>
+    <p class="sub">v0.2 · 2026-11-25 · dandártörzs pilot</p>
+    <label class="switch"><input type="checkbox" id="conf"> <span>Bizalmas+ (confidential+)</span></label>
+  </header>
+  <main>
+    <section id="lockpanel" class="card lock" hidden>
+      <h2>Bizalmas+ aktív: a példány zárolva</h2>
+      <p>Minden külső adapter tiltva. Ezen a felhős példányon nincs helyi adapter, ezért a feldolgozás leállt. A kapcsoló nem kapcsolható vissza.</p>
+      <p>A kapcsoló nem teszi alkalmassá a felhőt minősített adatra. Ahhoz külön, zárt és akkreditált rendszer kell.</p>
+    </section>
+
+    <section class="card">
+      <h2>Vezérlés</h2>
+      <div class="grid">
+        <label>Törzsszint <select id="echelon"></select></label>
+        <label>Belépett szerep (demó) <select id="role"></select></label>
+      </div>
+      <p id="echinfo" class="muted"></p>
+      <label class="check"><input type="checkbox" id="f-disagree"> Törzsvita szimulálása (D5)</label>
+      <label class="check"><input type="checkbox" id="f-screen"> Szűrési hiba szimulálása (DX)</label>
+      <div class="actions">
+        <button id="run" class="primary">Futtatás a következő döntésig</button>
+        <button id="step">Egy allépés</button>
+        <button id="reset">Új demó-példány</button>
+      </div>
+      <p id="status" class="status" role="status"></p>
+      <button id="open" class="attention" hidden>Döntés vár – ablak megnyitása</button>
+      <button id="resume" hidden>Elöljárói válasz megérkezett</button>
+    </section>
+
+    <section class="card">
+      <h2>Folyamat</h2>
+      <div id="steps"></div>
+    </section>
+
+    <section class="card">
+      <h2>Döntési és eseménynapló</h2>
+      <ol id="log" class="log"></ol>
+      <button id="export">Napló mentése (JSON)</button>
+    </section>
+
+    <section class="card">
+      <h2>Agentek ezen a szinten</h2>
+      <ul id="agents"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Telepítési profilok</h2>
+      <div id="profiles" class="grid"></div>
+    </section>
+  </main>
+
+  <dialog id="dlg" aria-labelledby="dlg-title">
+    <form method="dialog" id="dlg-form">
+      <p id="dlg-meta" class="muted"></p>
+      <h2 id="dlg-title" tabindex="-1" autofocus></h2>
+      <p id="dlg-clock" class="clock"></p>
+      <fieldset id="dlg-options"><legend>Alternatívák</legend></fieldset>
+      <button type="button" id="dlg-reveal" disabled>Törzsajánlás megtekintése</button>
+      <p id="dlg-rec" class="rec" hidden></p>
+      <label>Indoklás (eltérésnél kötelező) <textarea id="dlg-reason" rows="3"></textarea></label>
+      <p id="dlg-error" class="error" role="alert"></p>
+      <button type="button" id="dlg-switch" hidden>Váltás a jogosult szerepre (demó)</button>
+      <div class="actions">
+        <button type="button" id="dlg-ok" class="primary" disabled>Döntés rögzítése</button>
+        <button type="button" id="dlg-later">Később</button>
+      </div>
+    </form>
+  </dialog>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

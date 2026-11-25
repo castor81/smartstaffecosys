@@ -1,0 +1,1664 @@
+{
+ "meta": {
+  "name": "SmartStaffEcosys",
+  "version": "0.2",
+  "date": "2026-11-25",
+  "classification": "NYILT_GYAKORLO",
+  "pilot_echelon": "brigade",
+  "sources": [
+   "FM 5-0 (2024-11, C1)",
+   "FM 6-0 (2022-05)",
+   "AJP-5 Ed. B V1 (2026-06)"
+  ]
+ },
+ "human_roles": {
+  "commander": "Parancsnok",
+  "xo": "Törzsfőnök (XO/COS)",
+  "ops_chief": "Műveleti főnök"
+ },
+ "agents": [
+  {
+   "id": "A00",
+   "name": "Törzskoordinátor",
+   "tier": "T2",
+   "min_echelon": "battalion",
+   "enabled": true
+  },
+  {
+   "id": "A01",
+   "name": "{p}-1 személyügy",
+   "tier": "T2",
+   "min_echelon": "battalion",
+   "enabled": true
+  },
+  {
+   "id": "A02",
+   "name": "{p}-2 felderítés",
+   "tier": "T1",
+   "min_echelon": "battalion",
+   "enabled": true
+  },
+  {
+   "id": "A03",
+   "name": "{p}-3 műveletek, vezető tervező",
+   "tier": "T1",
+   "min_echelon": "battalion",
+   "enabled": true
+  },
+  {
+   "id": "A04",
+   "name": "{p}-4 logisztika",
+   "tier": "T2",
+   "min_echelon": "battalion",
+   "enabled": true
+  },
+  {
+   "id": "A05",
+   "name": "{p}-6 híradás",
+   "tier": "T2",
+   "min_echelon": "battalion",
+   "enabled": true
+  },
+  {
+   "id": "A06",
+   "name": "Tűztámogatás",
+   "tier": "T2",
+   "min_echelon": "battalion",
+   "enabled": true
+  },
+  {
+   "id": "A07",
+   "name": "Műszaki",
+   "tier": "T2",
+   "min_echelon": "battalion",
+   "enabled": true
+  },
+  {
+   "id": "A08",
+   "name": "Oltalmazás",
+   "tier": "T2",
+   "min_echelon": "battalion",
+   "enabled": true
+  },
+  {
+   "id": "A09",
+   "name": "Ellenség-szerepjátszó",
+   "tier": "T1",
+   "min_echelon": "battalion",
+   "enabled": true
+  },
+  {
+   "id": "A10",
+   "name": "Minőségellenőr",
+   "tier": "T1",
+   "min_echelon": "battalion",
+   "enabled": true
+  },
+  {
+   "id": "A11",
+   "name": "G-5 tervezés",
+   "tier": "T1",
+   "min_echelon": "division",
+   "enabled": false
+  }
+ ],
+ "echelons": [
+  {
+   "id": "battalion",
+   "label": "Zászlóalj",
+   "rank": 1,
+   "status": "prepared",
+   "chief": "XO",
+   "procedure": "FM 5-0 MDMP",
+   "cells": [
+    "egyesített tervező és műveleti cella"
+   ],
+   "differences": [
+    "egy integráló cella (FM 6-0 8-23)"
+   ]
+  },
+  {
+   "id": "brigade",
+   "label": "Dandár",
+   "rank": 2,
+   "status": "pilot",
+   "chief": "XO",
+   "procedure": "FM 5-0 MDMP",
+   "cells": [
+    "kis tervező cella",
+    "folyó műveleti cella"
+   ],
+   "differences": [
+    "nincs jövő műveletek cella (FM 6-0 8-23, 8-25)",
+    "oltalmazási törzstiszteket az S-3 koordinálja (FM 6-0 2-79)",
+    "tűztámogató tiszt (FSO) az S-3 alatt"
+   ]
+  },
+  {
+   "id": "division",
+   "label": "Hadosztály",
+   "rank": 3,
+   "status": "prepared",
+   "chief": "COS",
+   "procedure": "FM 5-0 MDMP",
+   "cells": [
+    "tervező cella",
+    "jövő műveletek cella",
+    "folyó műveleti cella"
+   ],
+   "differences": [
+    "G-5 tervező részleg (A11)",
+    "oltalmazási főnök (A08) és tűztámogatási főnök (A06)",
+    "tervszinkronizációs testület (FM 6-0 4-55)"
+   ]
+  },
+  {
+   "id": "corps",
+   "label": "Hadtest",
+   "rank": 4,
+   "status": "prepared",
+   "chief": "COS",
+   "procedure": "FM 5-0 MDMP",
+   "cells": [
+    "tervező cella",
+    "jövő műveletek cella",
+    "folyó műveleti cella"
+   ],
+   "differences": [
+    "a hadosztály profilja bővíthető szerepekkel"
+   ]
+  },
+  {
+   "id": "joint",
+   "label": "Összhaderőnemi",
+   "rank": 5,
+   "status": "placeholder",
+   "chief": "COS",
+   "procedure": "AJP-5",
+   "cells": [],
+   "differences": [
+    "külön folyamatdefiníció kell az AJP-5 hét tevékenységére"
+   ]
+  }
+ ],
+ "profiles": [
+  {
+   "id": "open",
+   "label": "Nyílt pilot",
+   "max_classification": "NYILT_GYAKORLO",
+   "egress": "allowlist",
+   "adapters": {
+    "model": "felhős modellátjáró",
+    "database": "Supabase (felhő)",
+    "orchestrator": "n8n felhő",
+    "export": "Google Sheets, Docs, Slides",
+    "web": "Vercel",
+    "notify": "e-mail jelzés"
+   }
+  },
+  {
+   "id": "confidential_plus",
+   "label": "Bizalmas+",
+   "max_classification": "NYILT_GYAKORLO",
+   "egress": "deny",
+   "adapters": {
+    "model": "helyi modellkiszolgáló",
+    "database": "saját üzemeltetésű Postgres",
+    "orchestrator": "saját üzemeltetésű n8n",
+    "export": "xlsx, docx, pptx fájl",
+    "web": "helyi webszerver",
+    "notify": "helyi értesítés"
+   }
+  }
+ ],
+ "modes": {
+  "full": {
+   "label": "Teljes MDMP",
+   "coa_count": 3
+  },
+  "short": {
+   "label": "Rövidített MDMP",
+   "coa_count": 2
+  },
+  "directed": {
+   "label": "Irányított COA",
+   "coa_count": 1
+  }
+ },
+ "rules": [
+  "Automatikus jóváhagyás nincs: határidő lejárta csak eszkalál.",
+  "Elutasítás vagy változás esetén a függő produktumok érvénytelenné válnak és újra kell készíteni őket.",
+  "A számítást script végzi, nem nyelvi modell.",
+  "A COA-darabszám üzemmód szerinti alapérték (tervezési szabály, nem doktrína)."
+ ],
+ "external_inputs": {
+  "HQ_ORDER": "Elöljárói parancs vagy várható feladat",
+  "KNOWLEDGE": "Doktrína- és tudásbázis",
+  "SOP": "Törzsmunka rendje",
+  "UNIT_STATUS": "Alegységek és erőforrások állapota",
+  "INTEL": "Elöljárói felderítési termékek",
+  "TERRAIN": "Terep- és időjárásadatok",
+  "ADJACENT": "Elöljárói és szomszédos tervek",
+  "REPORTS": "Jelentések a végrehajtás során"
+ },
+ "gates": [
+  {
+   "id": "D0",
+   "role": "commander",
+   "title": "Tervezési mód és kezdeti iránymutatás",
+   "fm": "5-25",
+   "options": [
+    {
+     "id": "full",
+     "label": "Teljes MDMP",
+     "effect": "advance"
+    },
+    {
+     "id": "short",
+     "label": "Rövidített MDMP",
+     "effect": "advance"
+    },
+    {
+     "id": "directed",
+     "label": "Irányított COA",
+     "effect": "advance"
+    },
+    {
+     "id": "back",
+     "label": "További helyzetfelmérés",
+     "effect": "rework",
+     "to": "S1.4"
+    }
+   ]
+  },
+  {
+   "id": "D1",
+   "role": "xo",
+   "title": "Időterv és WARNORD kiadása",
+   "fm": "5-24, 5-26",
+   "options": [
+    {
+     "id": "release",
+     "label": "Kiadás",
+     "effect": "advance"
+    },
+    {
+     "id": "revise",
+     "label": "Módosításra vissza",
+     "effect": "revise"
+    }
+   ]
+  },
+  {
+   "id": "D2",
+   "role": "commander",
+   "title": "Küldetéselemzés jóváhagyása, szándék, iránymutatás",
+   "fm": "5-66, 5-68",
+   "options": [
+    {
+     "id": "approve",
+     "label": "Jóváhagyás",
+     "effect": "advance"
+    },
+    {
+     "id": "modify",
+     "label": "Jóváhagyás módosítással",
+     "effect": "advance"
+    },
+    {
+     "id": "more",
+     "label": "További elemzés",
+     "effect": "rework",
+     "to": "S2.1"
+    }
+   ]
+  },
+  {
+   "id": "D3",
+   "role": "commander",
+   "title": "COA-k kiválasztása elemzésre",
+   "fm": "5-113",
+   "options": [
+    {
+     "id": "select",
+     "label": "Kiválasztás",
+     "effect": "advance"
+    },
+    {
+     "id": "modify",
+     "label": "Módosítás vagy új, kombinált COA",
+     "effect": "revise"
+    },
+    {
+     "id": "reject",
+     "label": "Mind elvetése",
+     "effect": "rework",
+     "to": "S3.2"
+    }
+   ]
+  },
+  {
+   "id": "D4",
+   "role": "commander",
+   "title": "Elemzési iránymutatás",
+   "fm": "5-116",
+   "options": [
+    {
+     "id": "issue",
+     "label": "Iránymutatás kiadása",
+     "effect": "advance"
+    },
+    {
+     "id": "back",
+     "label": "COA-k pontosítása",
+     "effect": "rework",
+     "to": "S3.6"
+    }
+   ]
+  },
+  {
+   "id": "DX",
+   "role": "commander",
+   "title": "COA nem felel meg a szűrési feltételeknek",
+   "fm": "5-145 megjegyzés",
+   "conditional": "screening_failed",
+   "options": [
+    {
+     "id": "drop",
+     "label": "COA elvetése, elemzés folytatása",
+     "effect": "advance"
+    },
+    {
+     "id": "redo",
+     "label": "Új COA kidolgozása",
+     "effect": "rework",
+     "to": "S3.2"
+    }
+   ]
+  },
+  {
+   "id": "D5",
+   "role": "xo",
+   "title": "Törzsajánlás vita esetén",
+   "fm": "5-172",
+   "conditional": "staff_disagreement",
+   "options": [
+    {
+     "id": "coa1",
+     "label": "COA 1 ajánlása",
+     "effect": "advance"
+    },
+    {
+     "id": "coa2",
+     "label": "COA 2 ajánlása",
+     "effect": "advance"
+    },
+    {
+     "id": "coa3",
+     "label": "COA 3 ajánlása",
+     "effect": "advance"
+    },
+    {
+     "id": "back",
+     "label": "Újbóli összehasonlítás",
+     "effect": "rework",
+     "to": "S5.2"
+    }
+   ]
+  },
+  {
+   "id": "D6",
+   "role": "commander",
+   "title": "COA jóváhagyása",
+   "fm": "5-173",
+   "options": [
+    {
+     "id": "approve",
+     "label": "A kiválasztott COA jóváhagyása",
+     "effect": "advance"
+    },
+    {
+     "id": "modify",
+     "label": "Módosított vagy új COA: elemzés szükséges",
+     "effect": "rework",
+     "to": "S4.2"
+    },
+    {
+     "id": "reject",
+     "label": "Mind elvetése",
+     "effect": "rework",
+     "to": "S3.2"
+    }
+   ]
+  },
+  {
+   "id": "D7",
+   "role": "commander",
+   "title": "Elfogadható kockázat és végső iránymutatás",
+   "fm": "5-174, 5-175",
+   "options": [
+    {
+     "id": "accept",
+     "label": "Kockázat elfogadása",
+     "effect": "advance"
+    },
+    {
+     "id": "mitigate",
+     "label": "További kockázatcsökkentés",
+     "effect": "revise"
+    },
+    {
+     "id": "higher",
+     "label": "Elöljárói jóváhagyás kérése",
+     "effect": "hold"
+    }
+   ]
+  },
+  {
+   "id": "D8",
+   "role": "commander",
+   "title": "OPORD vagy OPLAN jóváhagyása",
+   "fm": "5-182, 5-183",
+   "options": [
+    {
+     "id": "approve",
+     "label": "Jóváhagyás",
+     "effect": "advance"
+    },
+    {
+     "id": "fix",
+     "label": "Javításra vissza",
+     "effect": "rework",
+     "to": "S7.1"
+    },
+    {
+     "id": "reject",
+     "label": "Elutasítás, új COA-döntés",
+     "effect": "rework",
+     "to": "S6.1"
+    }
+   ]
+  },
+  {
+   "id": "D9",
+   "role": "ops_chief",
+   "title": "Milyen döntést igényel az eltérés?",
+   "fm": "6-21 - 6-23",
+   "options": [
+    {
+     "id": "none",
+     "label": "Nincs teendő, figyelés folytatása",
+     "effect": "loop",
+     "to": "S8.1"
+    },
+    {
+     "id": "execution",
+     "label": "Végrehajtási döntés saját hatáskörben",
+     "effect": "loop",
+     "to": "S8.1"
+    },
+    {
+     "id": "adjust",
+     "label": "Módosító döntés: új COA",
+     "effect": "advance"
+    },
+    {
+     "id": "newplan",
+     "label": "Új MDMP-ciklus",
+     "effect": "new_case"
+    }
+   ]
+  },
+  {
+   "id": "D10",
+   "role": "commander",
+   "title": "Módosítás végrehajtása FRAGORD-dal",
+   "fm": "6-32",
+   "options": [
+    {
+     "id": "implement",
+     "label": "Végrehajtás",
+     "effect": "advance"
+    },
+    {
+     "id": "modify",
+     "label": "COA módosítása",
+     "effect": "rework",
+     "to": "S8.3"
+    },
+    {
+     "id": "reject",
+     "label": "Elvetés, figyelés folytatása",
+     "effect": "loop",
+     "to": "S8.1"
+    }
+   ]
+  }
+ ],
+ "steps": [
+  {
+   "id": "S1",
+   "name": "Küldetés vétele",
+   "workflow": "WF-01",
+   "time_share": "S1+S2: 30-35%",
+   "substeps": [
+    {
+     "id": "S1.1",
+     "name": "Törzs riasztása, tervezőcsoport kijelölése",
+     "fm": "5-15",
+     "agents": [
+      "A00"
+     ],
+     "inputs": [
+      "HQ_ORDER"
+     ],
+     "outputs": [
+      "TEAM"
+     ],
+     "run": "script",
+     "qa": "minden harcfunkció képviselve"
+    },
+    {
+     "id": "S1.2",
+     "name": "Eszközök és dokumentumok összegyűjtése",
+     "fm": "5-16",
+     "agents": [
+      "A00"
+     ],
+     "inputs": [
+      "HQ_ORDER",
+      "KNOWLEDGE",
+      "SOP"
+     ],
+     "outputs": [
+      "TOOLKIT"
+     ],
+     "run": "script",
+     "qa": "hivatkozott mellékletek megvannak"
+    },
+    {
+     "id": "S1.3",
+     "name": "Helyzetértékelések frissítése",
+     "fm": "5-18",
+     "agents": [
+      "A01",
+      "A02",
+      "A03",
+      "A04",
+      "A05",
+      "A06",
+      "A07",
+      "A08"
+     ],
+     "inputs": [
+      "TOOLKIT",
+      "UNIT_STATUS"
+     ],
+     "outputs": [
+      "ESTIMATES"
+     ],
+     "run": "llm:T2",
+     "qa": "forrás és dátum minden tételnél",
+     "product": "P03"
+    },
+    {
+     "id": "S1.4",
+     "name": "Kezdeti értékelés és időterv-tervezet",
+     "fm": "5-19 - 5-23",
+     "agents": [
+      "A00",
+      "A03"
+     ],
+     "inputs": [
+      "HQ_ORDER",
+      "ESTIMATES"
+     ],
+     "outputs": [
+      "ASSESSMENT",
+      "TIMELINE_DRAFT"
+     ],
+     "run": "script+llm:T2",
+     "qa": "egyharmad-kétharmad szabály"
+    },
+    {
+     "id": "S1.5",
+     "name": "Parancsnoki kezdeti iránymutatás",
+     "fm": "5-25",
+     "agents": [],
+     "inputs": [
+      "ASSESSMENT"
+     ],
+     "outputs": [
+      "GUIDANCE_0"
+     ],
+     "run": "human",
+     "gates": [
+      "D0"
+     ]
+    },
+    {
+     "id": "S1.6",
+     "name": "Időterv jóváhagyása és 1. WARNORD",
+     "fm": "5-24, 5-26",
+     "agents": [
+      "A00",
+      "A03"
+     ],
+     "inputs": [
+      "GUIDANCE_0",
+      "TIMELINE_DRAFT"
+     ],
+     "outputs": [
+      "TIMELINE",
+      "WARNORD_1"
+     ],
+     "run": "llm:T2",
+     "qa": "WARNORD kötelező elemei",
+     "gates": [
+      "D1"
+     ],
+     "product": "P01, P02"
+    }
+   ]
+  },
+  {
+   "id": "S2",
+   "name": "Küldetéselemzés",
+   "workflow": "WF-02",
+   "time_share": "S1+S2: 30-35%",
+   "substeps": [
+    {
+     "id": "S2.1",
+     "name": "Elöljárói parancs elemzése",
+     "fm": "5-28",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "HQ_ORDER",
+      "GUIDANCE_0"
+     ],
+     "outputs": [
+      "HQ_ANALYSIS"
+     ],
+     "run": "llm:T1",
+     "qa": "két szinttel feljebb lévő szándék"
+    },
+    {
+     "id": "S2.2",
+     "name": "Kezdeti IPOE",
+     "fm": "5-30",
+     "agents": [
+      "A02"
+     ],
+     "inputs": [
+      "HQ_ORDER",
+      "INTEL",
+      "TERRAIN"
+     ],
+     "outputs": [
+      "IPOE"
+     ],
+     "run": "llm:T1",
+     "qa": "tény és következtetés külön",
+     "product": "P04"
+    },
+    {
+     "id": "S2.3",
+     "name": "Meghatározott, következtetett és lényeges feladatok",
+     "fm": "5-34",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "HQ_ANALYSIS"
+     ],
+     "outputs": [
+      "TASKS"
+     ],
+     "run": "llm:T1",
+     "qa": "minden feladat hivatkozott",
+     "product": "P05"
+    },
+    {
+     "id": "S2.4",
+     "name": "Erőforrások és hiányok",
+     "fm": "5-39",
+     "agents": [
+      "A01",
+      "A04"
+     ],
+     "inputs": [
+      "ESTIMATES",
+      "TASKS"
+     ],
+     "outputs": [
+      "ASSETS"
+     ],
+     "run": "script+llm:T2",
+     "qa": "hiány számszerűen"
+    },
+    {
+     "id": "S2.5",
+     "name": "Korlátok",
+     "fm": "5-40",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "HQ_ANALYSIS"
+     ],
+     "outputs": [
+      "CONSTRAINTS"
+     ],
+     "run": "llm:T3",
+     "qa": "constraint és limitation nem keveredik",
+     "product": "P05"
+    },
+    {
+     "id": "S2.6",
+     "name": "Tények és feltételezések",
+     "fm": "5-42",
+     "agents": [
+      "A01",
+      "A02",
+      "A03",
+      "A04",
+      "A05",
+      "A06",
+      "A07",
+      "A08"
+     ],
+     "inputs": [
+      "HQ_ANALYSIS",
+      "ESTIMATES"
+     ],
+     "outputs": [
+      "FACTS"
+     ],
+     "run": "llm:T2",
+     "qa": "feltételezésnek van megerősítési módja",
+     "product": "P05"
+    },
+    {
+     "id": "S2.7",
+     "name": "Kockázatkezelés megkezdése",
+     "fm": "5-45",
+     "agents": [
+      "A08"
+     ],
+     "inputs": [
+      "TASKS",
+      "IPOE",
+      "FACTS"
+     ],
+     "outputs": [
+      "RISKS"
+     ],
+     "run": "llm:T2",
+     "qa": "veszély, valószínűség, súlyosság, gazda"
+    },
+    {
+     "id": "S2.8",
+     "name": "Kezdeti CCIR és EEFI",
+     "fm": "5-47",
+     "agents": [
+      "A02",
+      "A03"
+     ],
+     "inputs": [
+      "IPOE",
+      "TASKS",
+      "FACTS"
+     ],
+     "outputs": [
+      "CCIR"
+     ],
+     "run": "llm:T1",
+     "qa": "minden CCIR döntéshez kötött"
+    },
+    {
+     "id": "S2.9",
+     "name": "Kezdeti információgyűjtési terv",
+     "fm": "5-51",
+     "agents": [
+      "A02",
+      "A03"
+     ],
+     "inputs": [
+      "IPOE",
+      "CCIR"
+     ],
+     "outputs": [
+      "ICP"
+     ],
+     "run": "llm:T2",
+     "qa": "minden PIR-nek van eszköze"
+    },
+    {
+     "id": "S2.10",
+     "name": "Időtervek frissítése",
+     "fm": "5-55",
+     "agents": [
+      "A00"
+     ],
+     "inputs": [
+      "TIMELINE",
+      "ASSESSMENT"
+     ],
+     "outputs": [
+      "TIMELINE"
+     ],
+     "run": "script",
+     "qa": "ütközésvizsgálat",
+     "product": "P01"
+    },
+    {
+     "id": "S2.11",
+     "name": "Problémamegfogalmazás javaslata",
+     "fm": "5-57",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "IPOE",
+      "TASKS",
+      "CONSTRAINTS"
+     ],
+     "outputs": [
+      "PROBLEM"
+     ],
+     "run": "llm:T1",
+     "qa": "független ellenőrzés"
+    },
+    {
+     "id": "S2.12",
+     "name": "Küldetésmegfogalmazás javaslata",
+     "fm": "5-59",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "TASKS",
+      "PROBLEM"
+     ],
+     "outputs": [
+      "MISSION"
+     ],
+     "run": "llm:T1",
+     "qa": "ki, mit, mikor, hol, miért"
+    },
+    {
+     "id": "S2.13",
+     "name": "COA értékelési szempontok",
+     "fm": "5-63",
+     "agents": [
+      "A00",
+      "A03"
+     ],
+     "inputs": [
+      "MISSION",
+      "GUIDANCE_0"
+     ],
+     "outputs": [
+      "CRITERIA"
+     ],
+     "run": "llm:T2",
+     "qa": "definíció, mérték, irány"
+    },
+    {
+     "id": "S2.14",
+     "name": "Küldetéselemzési eligazítás",
+     "fm": "5-66",
+     "agents": [
+      "A00"
+     ],
+     "inputs": [
+      "IPOE",
+      "TASKS",
+      "ASSETS",
+      "CONSTRAINTS",
+      "FACTS",
+      "RISKS",
+      "CCIR",
+      "ICP",
+      "PROBLEM",
+      "MISSION",
+      "CRITERIA",
+      "TIMELINE"
+     ],
+     "outputs": [
+      "MA_BRIEF"
+     ],
+     "run": "llm:T2",
+     "qa": "A10 egyeztetés",
+     "product": "P06"
+    },
+    {
+     "id": "S2.15",
+     "name": "Parancsnoki jóváhagyás, szándék, módosított iránymutatás",
+     "fm": "5-66, 5-68",
+     "agents": [],
+     "inputs": [
+      "MA_BRIEF"
+     ],
+     "outputs": [
+      "MA_APPROVED",
+      "INTENT",
+      "GUIDANCE_MA"
+     ],
+     "run": "human",
+     "gates": [
+      "D2"
+     ]
+    },
+    {
+     "id": "S2.16",
+     "name": "2. WARNORD",
+     "fm": "5-72",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "MA_APPROVED",
+      "INTENT",
+      "GUIDANCE_MA"
+     ],
+     "outputs": [
+      "WARNORD_2"
+     ],
+     "run": "llm:T2",
+     "qa": "WARNORD kötelező elemei",
+     "gates": [
+      "D1"
+     ],
+     "product": "P02"
+    }
+   ]
+  },
+  {
+   "id": "S3",
+   "name": "COA-kidolgozás",
+   "workflow": "WF-03",
+   "time_share": "15-20%",
+   "substeps": [
+    {
+     "id": "S3.1",
+     "name": "Relatív erőviszonyok értékelése",
+     "fm": "5-80",
+     "agents": [
+      "A03",
+      "A02"
+     ],
+     "inputs": [
+      "IPOE",
+      "ASSETS",
+      "GUIDANCE_MA"
+     ],
+     "outputs": [
+      "COMBAT_POWER"
+     ],
+     "run": "script+llm:T1",
+     "qa": "arány script számításból",
+     "product": "P08"
+    },
+    {
+     "id": "S3.2",
+     "name": "Lehetőségek generálása",
+     "fm": "5-87",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "MA_APPROVED",
+      "INTENT",
+      "GUIDANCE_MA",
+      "COMBAT_POWER"
+     ],
+     "outputs": [
+      "OPTIONS"
+     ],
+     "run": "llm:T1",
+     "qa": "ellenséges COA-k lefedve"
+    },
+    {
+     "id": "S3.3",
+     "name": "Erők elrendezése",
+     "fm": "5-95",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "OPTIONS",
+      "COMBAT_POWER"
+     ],
+     "outputs": [
+      "ARRAY"
+     ],
+     "run": "script+llm:T1",
+     "qa": "minden egység elszámolva"
+    },
+    {
+     "id": "S3.4",
+     "name": "Hadműveleti elgondolás kidolgozása",
+     "fm": "5-102",
+     "agents": [
+      "A03",
+      "A04",
+      "A05",
+      "A06",
+      "A07",
+      "A08"
+     ],
+     "inputs": [
+      "ARRAY",
+      "INTENT"
+     ],
+     "outputs": [
+      "CONOPS"
+     ],
+     "run": "llm:T1",
+     "qa": "minden harcfunkciónak van vázlata"
+    },
+    {
+     "id": "S3.5",
+     "name": "Parancsnokságok hozzárendelése",
+     "fm": "5-106",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "CONOPS"
+     ],
+     "outputs": [
+      "TASKORG"
+     ],
+     "run": "llm:T2",
+     "qa": "vezetési terjedelem"
+    },
+    {
+     "id": "S3.6",
+     "name": "COA-leírások és vázlatok",
+     "fm": "5-108",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "CONOPS",
+      "TASKORG"
+     ],
+     "outputs": [
+      "COA_SET"
+     ],
+     "run": "llm:T2",
+     "qa": "A10 szűrés: megvalósítható, elfogadható, célravezető, megkülönböztethető, teljes",
+     "product": "P07"
+    },
+    {
+     "id": "S3.7",
+     "name": "COA-eligazítás",
+     "fm": "5-112",
+     "agents": [
+      "A00"
+     ],
+     "inputs": [
+      "COA_SET",
+      "COMBAT_POWER",
+      "IPOE"
+     ],
+     "outputs": [
+      "COA_BRIEF"
+     ],
+     "run": "llm:T2",
+     "qa": "legvalószínűbb és legveszélyesebb ellenséges COA"
+    },
+    {
+     "id": "S3.8",
+     "name": "Parancsnoki választás vagy módosítás",
+     "fm": "5-113",
+     "agents": [],
+     "inputs": [
+      "COA_BRIEF"
+     ],
+     "outputs": [
+      "COA_SELECTED",
+      "GUIDANCE_COA"
+     ],
+     "run": "human",
+     "gates": [
+      "D3"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "S4",
+   "name": "COA-elemzés",
+   "workflow": "WF-04",
+   "time_share": "S4-S6: 30-35%",
+   "substeps": [
+    {
+     "id": "S4.1",
+     "name": "Elemzési iránymutatás",
+     "fm": "5-116",
+     "agents": [],
+     "inputs": [
+      "COA_SELECTED",
+      "GUIDANCE_COA"
+     ],
+     "outputs": [
+      "GUIDANCE_WG"
+     ],
+     "run": "human",
+     "gates": [
+      "D4"
+     ]
+    },
+    {
+     "id": "S4.2",
+     "name": "Eszközök összegyűjtése",
+     "fm": "5-133",
+     "agents": [
+      "A00"
+     ],
+     "inputs": [
+      "GUIDANCE_WG",
+      "ESTIMATES"
+     ],
+     "outputs": [
+      "WG_KIT"
+     ],
+     "run": "script"
+    },
+    {
+     "id": "S4.3",
+     "name": "Saját erők listázása",
+     "fm": "5-134",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "COA_SELECTED",
+      "TASKORG"
+     ],
+     "outputs": [
+      "FRIENDLY"
+     ],
+     "run": "script",
+     "qa": "egyezik a hadrenddel"
+    },
+    {
+     "id": "S4.4",
+     "name": "Feltételezések listázása",
+     "fm": "5-135",
+     "agents": [
+      "A00"
+     ],
+     "inputs": [
+      "FACTS",
+      "COA_SELECTED"
+     ],
+     "outputs": [
+      "WG_ASSUMPTIONS"
+     ],
+     "run": "llm:T3",
+     "qa": "elavult feltételezés jelölve"
+    },
+    {
+     "id": "S4.5",
+     "name": "Kritikus események és döntési pontok",
+     "fm": "5-136",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "COA_SELECTED",
+      "GUIDANCE_WG"
+     ],
+     "outputs": [
+      "EVENTS"
+     ],
+     "run": "llm:T1"
+    },
+    {
+     "id": "S4.6",
+     "name": "Elemzés végrehajtása: akció, reakció, ellenakció",
+     "fm": "5-138",
+     "agents": [
+      "A03",
+      "A09",
+      "A02",
+      "A04",
+      "A06",
+      "A07",
+      "A08"
+     ],
+     "inputs": [
+      "WG_KIT",
+      "FRIENDLY",
+      "WG_ASSUMPTIONS",
+      "EVENTS",
+      "IPOE"
+     ],
+     "outputs": [
+      "WG_RESULTS",
+      "SYNC_MATRIX",
+      "COA_REFINED",
+      "DECISION_POINTS",
+      "MEASURES"
+     ],
+     "run": "llm:T1",
+     "qa": "COA-nként külön futás, COA-k nem hasonlíthatók össze",
+     "gates": [
+      "DX"
+     ],
+     "product": "P09"
+    },
+    {
+     "id": "S4.7",
+     "name": "Belső elemzési eligazítás",
+     "fm": "5-145",
+     "agents": [
+      "A00"
+     ],
+     "inputs": [
+      "WG_RESULTS"
+     ],
+     "outputs": [
+      "WG_BRIEF"
+     ],
+     "run": "llm:T3",
+     "optional": true
+    }
+   ]
+  },
+  {
+   "id": "S5",
+   "name": "COA-összehasonlítás",
+   "workflow": "WF-05",
+   "time_share": "S4-S6: 30-35%",
+   "substeps": [
+    {
+     "id": "S5.1",
+     "name": "Előny-hátrány elemzés törzsszekciónként",
+     "fm": "5-167",
+     "agents": [
+      "A01",
+      "A02",
+      "A03",
+      "A04",
+      "A05",
+      "A06",
+      "A07",
+      "A08"
+     ],
+     "inputs": [
+      "COA_REFINED",
+      "WG_RESULTS",
+      "CRITERIA"
+     ],
+     "outputs": [
+      "PROS_CONS"
+     ],
+     "run": "llm:T2",
+     "qa": "szekciónként független futás"
+    },
+    {
+     "id": "S5.2",
+     "name": "Összehasonlítás döntési mátrixszal",
+     "fm": "5-168",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "CRITERIA",
+      "PROS_CONS"
+     ],
+     "outputs": [
+      "MATRIX"
+     ],
+     "run": "script",
+     "qa": "súlyok pontozás előtt zárolva; érzékenységvizsgálat",
+     "product": "P10"
+    },
+    {
+     "id": "S5.3",
+     "name": "Ajánlott COA meghatározása",
+     "fm": "5-172",
+     "agents": [
+      "A03",
+      "A00"
+     ],
+     "inputs": [
+      "MATRIX",
+      "PROS_CONS",
+      "RISKS"
+     ],
+     "outputs": [
+      "RECOMMENDATION"
+     ],
+     "run": "llm:T1",
+     "qa": "különvélemény rögzítve",
+     "gates": [
+      "D5"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "S6",
+   "name": "COA-jóváhagyás",
+   "workflow": "WF-05",
+   "time_share": "S4-S6: 30-35%",
+   "substeps": [
+    {
+     "id": "S6.1",
+     "name": "Döntési eligazítás",
+     "fm": "5-172",
+     "agents": [
+      "A00"
+     ],
+     "inputs": [
+      "RECOMMENDATION",
+      "COA_REFINED",
+      "MATRIX",
+      "IPOE"
+     ],
+     "outputs": [
+      "DECISION_BRIEF"
+     ],
+     "run": "llm:T2",
+     "qa": "A10 egyeztetés",
+     "product": "P11"
+    },
+    {
+     "id": "S6.2",
+     "name": "COA jóváhagyása, kockázat, végső iránymutatás",
+     "fm": "5-173 - 5-175",
+     "agents": [],
+     "inputs": [
+      "DECISION_BRIEF",
+      "RISKS"
+     ],
+     "outputs": [
+      "COA_APPROVED",
+      "GUIDANCE_FINAL",
+      "INTENT",
+      "CCIR"
+     ],
+     "run": "human",
+     "gates": [
+      "D6",
+      "D7"
+     ]
+    },
+    {
+     "id": "S6.3",
+     "name": "3. WARNORD",
+     "fm": "5-176",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "COA_APPROVED",
+      "GUIDANCE_FINAL"
+     ],
+     "outputs": [
+      "WARNORD_3"
+     ],
+     "run": "llm:T2",
+     "qa": "WARNORD kötelező elemei",
+     "gates": [
+      "D1"
+     ],
+     "product": "P02"
+    }
+   ]
+  },
+  {
+   "id": "S7",
+   "name": "Parancs, kiadás, átadás",
+   "workflow": "WF-07",
+   "time_share": "15-20%",
+   "substeps": [
+    {
+     "id": "S7.1",
+     "name": "Parancs és mellékletek kidolgozása",
+     "fm": "5-177, 5-178",
+     "agents": [
+      "A01",
+      "A02",
+      "A03",
+      "A04",
+      "A05",
+      "A06",
+      "A07",
+      "A08"
+     ],
+     "inputs": [
+      "COA_APPROVED",
+      "GUIDANCE_FINAL",
+      "SYNC_MATRIX",
+      "ESTIMATES",
+      "IPOE"
+     ],
+     "outputs": [
+      "ORDER_DRAFT",
+      "OVERLAYS"
+     ],
+     "run": "llm:T2",
+     "qa": "mellékletfelelős és határidő",
+     "product": "P12, P13"
+    },
+    {
+     "id": "S7.2",
+     "name": "Belső egyeztetés (reconciliation)",
+     "fm": "5-180",
+     "agents": [
+      "A10"
+     ],
+     "inputs": [
+      "ORDER_DRAFT",
+      "INTENT",
+      "CCIR"
+     ],
+     "outputs": [
+      "RECON_REPORT"
+     ],
+     "run": "script+llm:T1",
+     "qa": "alapparancs és mellékletek egyeznek"
+    },
+    {
+     "id": "S7.3",
+     "name": "Keresztellenőrzés (crosswalk)",
+     "fm": "5-181",
+     "agents": [
+      "A10"
+     ],
+     "inputs": [
+      "ORDER_DRAFT",
+      "HQ_ORDER",
+      "ADJACENT"
+     ],
+     "outputs": [
+      "CROSSWALK_REPORT"
+     ],
+     "run": "llm:T1",
+     "qa": "elöljárói szándékba illeszkedik"
+    },
+    {
+     "id": "S7.4",
+     "name": "Parancsnoki jóváhagyás",
+     "fm": "5-182, 5-183",
+     "agents": [],
+     "inputs": [
+      "ORDER_DRAFT",
+      "RECON_REPORT",
+      "CROSSWALK_REPORT"
+     ],
+     "outputs": [
+      "ORDER"
+     ],
+     "run": "human",
+     "gates": [
+      "D8"
+     ]
+    },
+    {
+     "id": "S7.5",
+     "name": "Kiadás és nyugtázás",
+     "fm": "5-183",
+     "agents": [
+      "A00"
+     ],
+     "inputs": [
+      "ORDER"
+     ],
+     "outputs": [
+      "ACKS"
+     ],
+     "run": "script",
+     "qa": "hiányzó nyugta eszkalál"
+    },
+    {
+     "id": "S7.6",
+     "name": "Megértést igazoló eligazítások",
+     "fm": "5-184",
+     "agents": [],
+     "inputs": [
+      "ORDER",
+      "ACKS"
+     ],
+     "outputs": [
+      "CONFIRMATION"
+     ],
+     "run": "human"
+    },
+    {
+     "id": "S7.7",
+     "name": "Átadás a folyó műveleti cellának",
+     "fm": "5-185",
+     "agents": [
+      "A00",
+      "A03"
+     ],
+     "inputs": [
+      "ORDER",
+      "DECISION_POINTS",
+      "MEASURES"
+     ],
+     "outputs": [
+      "HANDOVER"
+     ],
+     "run": "llm:T2",
+     "qa": "átadási ellenőrzőlista"
+    }
+   ]
+  },
+  {
+   "id": "S8",
+   "name": "Végrehajtás: gyors döntési ciklus (RDSP)",
+   "workflow": "WF-08",
+   "time_share": "folyamatos",
+   "substeps": [
+    {
+     "id": "S8.1",
+     "name": "Helyzet összevetése a paranccsal",
+     "fm": "6-18 - 6-20",
+     "agents": [
+      "A02",
+      "A03"
+     ],
+     "inputs": [
+      "ORDER",
+      "HANDOVER",
+      "REPORTS",
+      "CCIR"
+     ],
+     "outputs": [
+      "VARIANCE"
+     ],
+     "run": "script+llm:T3",
+     "qa": "CCIR-találat azonnali jelzés"
+    },
+    {
+     "id": "S8.2",
+     "name": "A szükséges döntés meghatározása",
+     "fm": "6-21 - 6-23",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "VARIANCE"
+     ],
+     "outputs": [
+      "DECISION_NEED"
+     ],
+     "run": "llm:T1",
+     "qa": "lehetőség vagy veszély leírva",
+     "gates": [
+      "D9"
+     ]
+    },
+    {
+     "id": "S8.3",
+     "name": "COA kidolgozása",
+     "fm": "6-24 - 6-28",
+     "agents": [
+      "A03",
+      "A02",
+      "A04",
+      "A06"
+     ],
+     "inputs": [
+      "DECISION_NEED",
+      "INTENT"
+     ],
+     "outputs": [
+      "ADJ_COA"
+     ],
+     "run": "llm:T1",
+     "qa": "parancsnoki szándékon belül"
+    },
+    {
+     "id": "S8.4",
+     "name": "Finomítás és érvényesítés",
+     "fm": "6-29 - 6-31",
+     "agents": [
+      "A09",
+      "A10"
+     ],
+     "inputs": [
+      "ADJ_COA"
+     ],
+     "outputs": [
+      "VALID_COA"
+     ],
+     "run": "llm:T1",
+     "qa": "megvalósítható, célravezető, elfogadható"
+    },
+    {
+     "id": "S8.5",
+     "name": "Végrehajtás: FRAGORD",
+     "fm": "6-32 - 6-35",
+     "agents": [
+      "A03"
+     ],
+     "inputs": [
+      "VALID_COA"
+     ],
+     "outputs": [
+      "FRAGORD",
+      "SYNC_MATRIX"
+     ],
+     "run": "llm:T2",
+     "qa": "döntéstámogató sablon frissítve",
+     "gates": [
+      "D10"
+     ],
+     "product": "P14"
+    }
+   ]
+  }
+ ]
+}
