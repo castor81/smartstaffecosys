@@ -13,8 +13,8 @@ Verziók: webfelület és közös gyakorlat (adatbázis-kiegészítés) v0.5; fo
 | Harcvezető központ (`index.html`) | szimuláció előre megírt fiktív üzenetekkel; 390 px-től 1600 px-ig tesztelve |
 | Folyamatdefiníció, motor, folyamatnézet | tesztelve |
 | Adatbázis-séma, API, jogosultságok (v0.3) | tesztelve; Supabase-re telepítve, külön `sse` sémába |
-| Közös, többfelhasználós gyakorlat (v0.5) | helyi PostgreSQL 16-on, három böngészővel tesztelve; a Supabase-re még nincs feltöltve |
-| Döntési ablak (`live.html`) | helyi adatbázissal tesztelve; a `config.js` még üres |
+| Közös, többfelhasználós gyakorlat (v0.5) | helyi PostgreSQL 16-on, három böngészővel tesztelve; Supabase-re feltöltve, tagot még a rendszergazdának kell felvennie |
+| Döntési ablak (`live.html`) | helyi adatbázissal tesztelve; a `config.js` ki van töltve |
 | n8n-futtató (WF-01, WF-02) | vázlatként elkészült, nincs publikálva; szimulált adatokkal lefutott, valódi modellhívás még nem volt |
 
 ## Tartalom
