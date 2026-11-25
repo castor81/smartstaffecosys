@@ -71,6 +71,11 @@ export function createEngine(process, saved) {
     return gate.options.filter((o) => !o.id.startsWith('coa') || Number(o.id.slice(3)) <= count);
   }
 
+  /** An option may name its own roles; otherwise only the gate's role may choose it. */
+  function rolesFor(gate, chosen) {
+    return chosen?.roles || [gate.role];
+  }
+
   function invalidate(from, to) {
     let n = 0;
     for (const a of state.artifacts) {
@@ -84,9 +89,10 @@ export function createEngine(process, saved) {
     if (locked()) throw new Error('A példány zárolva van.');
     if (state.status !== 'waiting') throw new Error('Nincs nyitott döntés.');
     const gate = currentGate();
-    if (role !== gate.role) throw new Error(`Ezt a kaput csak ez a szerep döntheti el: ${process.human_roles[gate.role]}.`);
     const chosen = options(gate).find((o) => o.id === option);
     if (!chosen) throw new Error('Válassz egy alternatívát.');
+    const allowed = rolesFor(gate, chosen);
+    if (!allowed.includes(role)) throw new Error(`Ezt csak ez a szerep döntheti el: ${allowed.map((r) => process.human_roles[r]).join(' vagy ')}.`);
     if (recommended && option !== recommended && !reason.trim()) throw new Error('Az ajánlástól eltéréshez indoklás kell.');
 
     const here = state.cursor;
@@ -145,7 +151,7 @@ export function createEngine(process, saved) {
   }
 
   return {
-    state, subs, advance, runToGate, currentGate, options, decide, resume, escalate, lockConfidential,
+    state, subs, advance, runToGate, currentGate, options, rolesFor, decide, resume, escalate, lockConfidential,
     valid: (code) => state.artifacts.filter((a) => a.code === code && a.valid).at(-1) || null,
   };
 }

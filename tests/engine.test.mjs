@@ -9,7 +9,9 @@ const process_ = JSON.parse(readFileSync(new URL('../public/data/process.json', 
 const make = () => createEngine(process_);
 const answer = (e, option) => {
   const gate = e.currentGate();
-  return e.decide({ option: option ?? DEMO[gate.id].rec, role: gate.role, reason: 'teszt', recommended: DEMO[gate.id].rec });
+  const id = option ?? DEMO[gate.id].rec;
+  const role = e.rolesFor(gate, gate.options.find((o) => o.id === id))[0];
+  return e.decide({ option: id, role, reason: 'teszt', recommended: DEMO[gate.id].rec });
 };
 const goTo = (e, gateId) => {
   for (let i = 0; i < 40; i += 1) {
@@ -38,9 +40,22 @@ test('full cycle reaches execution and loops', () => {
 test('only the entitled role decides, deviation needs a reason', () => {
   const e = make();
   e.runToGate();
-  assert.throws(() => e.decide({ option: 'full', role: 'xo' }), /csak ez a szerep/);
+  assert.throws(() => e.decide({ option: 'full', role: 'xo' }), /csak ez a szerep döntheti/);
   assert.throws(() => e.decide({ option: 'short', role: 'commander', recommended: 'full' }), /indoklás/);
   assert.equal(e.state.status, 'waiting');
+});
+
+test('a variance affecting the main direction is the commander\'s decision', () => {
+  const e = make();
+  goTo(e, 'D9');
+  for (const option of ['adjust', 'newplan']) {
+    assert.throws(() => e.decide({ option, role: 'ops_chief', reason: 'x' }), /Parancsnok/);
+  }
+  e.decide({ option: 'execution', role: 'ops_chief', reason: 'x' });
+  goTo(e, 'D9');
+  e.decide({ option: 'adjust', role: 'commander' });
+  e.runToGate();
+  assert.equal(e.currentGate().id, 'D10');
 });
 
 test('nothing advances while a decision is open, even after escalation', () => {

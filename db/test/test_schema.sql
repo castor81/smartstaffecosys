@@ -1,5 +1,6 @@
 -- Negative and positive tests. Run on a scratch database after the schema and the gate seed.
 \set ON_ERROR_STOP on
+\o /dev/null
 set search_path = sse;
 
 create or replace function public.must_fail(q text, expected text) returns void language plpgsql as $$
@@ -103,4 +104,5 @@ insert into model_call (case_id, hq_id, agent_id, model, location, classificatio
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1', 'A03', 'local-model', 'local', 'NYILT_GYAKORLO');
 select public.must_fail($q$update sse.instance_config set profile = 'open'$q$, 'downgrade is forbidden');
 select public.must_fail($q$delete from sse.instance_config$q$, 'cannot be removed');
+\o
 \echo ALL SCHEMA TESTS PASSED

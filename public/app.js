@@ -1,7 +1,7 @@
 import { createEngine } from './engine.js';
 import { DEMO } from './demo.js';
 
-const KEY = 'sse-demo-v0.2';
+const KEY = 'sse-demo-v0.3';
 const DEADLINE_MS = 120000;
 const $ = (id) => document.getElementById(id);
 const el = (tag, text, cls) => {
@@ -123,6 +123,7 @@ function openDialog() {
     Object.assign(input, { type: 'radio', name: 'opt', value: o.id });
     const text = el('span');
     text.append(el('strong', o.label), el('small', `Előny: ${pro}`), el('small', `Hátrány: ${con}`), el('small', `Kockázat: ${risk}`));
+    if (o.roles) text.append(el('small', `Dönthet: ${o.roles.map(roleName).join(' vagy ')}`));
     label.append(input, text);
     return label;
   }));
@@ -137,10 +138,13 @@ function openDialog() {
   $('dlg').showModal();
 }
 
+const selected = (gate) => engine.options(gate).find((o) => o.id === $('dlg-form').elements.opt?.value);
+
 function checkRole(gate) {
-  const ok = $('role').value === gate.role;
+  const allowed = engine.rolesFor(gate, selected(gate));
+  const ok = allowed.includes($('role').value);
   $('dlg-switch').hidden = ok;
-  $('dlg-error').textContent = ok ? '' : `A belépett szerep nem jogosult. Szükséges: ${roleName(gate.role)}.`;
+  $('dlg-error').textContent = ok ? '' : `A belépett szerep nem jogosult. Szükséges: ${allowed.map(roleName).join(' vagy ')}.`;
   $('dlg-ok').disabled = !ok || $('dlg-rec').hidden;
 }
 
@@ -163,13 +167,14 @@ $('step').addEventListener('click', () => { engine.advance(); afterRun(); });
 $('open').addEventListener('click', openDialog);
 $('resume').addEventListener('click', () => { engine.resume(); afterRun(); });
 $('dlg-later').addEventListener('click', () => $('dlg').close());
-$('dlg-options').addEventListener('change', () => { $('dlg-reveal').disabled = false; });
+$('dlg-options').addEventListener('change', () => { $('dlg-reveal').disabled = false; checkRole(engine.currentGate()); });
 $('dlg-reveal').addEventListener('click', () => {
   $('dlg-rec').hidden = false;
   checkRole(engine.currentGate());
 });
 $('dlg-switch').addEventListener('click', () => {
-  $('role').value = engine.currentGate().role;
+  const gate = engine.currentGate();
+  $('role').value = engine.rolesFor(gate, selected(gate))[0];
   checkRole(engine.currentGate());
 });
 $('dlg-ok').addEventListener('click', () => {

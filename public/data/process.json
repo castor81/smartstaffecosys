@@ -1,7 +1,7 @@
 {
  "meta": {
   "name": "SmartStaffEcosys",
-  "version": "0.2",
+  "version": "0.3",
   "date": "2026-11-25",
   "classification": "NYILT_GYAKORLO",
   "pilot_echelon": "brigade",
@@ -129,6 +129,7 @@
     "folyó műveleti cella"
    ],
    "differences": [
+    "van tervező cella (FM 6-0 8-23; projektdöntés, 2026-11-25)",
     "nincs jövő műveletek cella (FM 6-0 8-23, 8-25)",
     "oltalmazási törzstiszteket az S-3 koordinálja (FM 6-0 2-79)",
     "tűztámogató tiszt (FSO) az S-3 alatt"
@@ -489,23 +490,37 @@
      "id": "none",
      "label": "Nincs teendő, figyelés folytatása",
      "effect": "loop",
-     "to": "S8.1"
+     "to": "S8.1",
+     "roles": [
+      "ops_chief",
+      "commander"
+     ]
     },
     {
      "id": "execution",
      "label": "Végrehajtási döntés saját hatáskörben",
      "effect": "loop",
-     "to": "S8.1"
+     "to": "S8.1",
+     "roles": [
+      "ops_chief",
+      "commander"
+     ]
     },
     {
      "id": "adjust",
      "label": "Módosító döntés: új COA",
-     "effect": "advance"
+     "effect": "advance",
+     "roles": [
+      "commander"
+     ]
     },
     {
      "id": "newplan",
      "label": "Új MDMP-ciklus",
-     "effect": "new_case"
+     "effect": "new_case",
+     "roles": [
+      "commander"
+     ]
     }
    ]
   },
@@ -1659,6 +1674,64 @@
      "product": "P14"
     }
    ]
+  }
+ ],
+ "segments": [
+  {
+   "id": "W1A",
+   "workflow": "WF-01",
+   "substeps": [
+    "S1.1",
+    "S1.2",
+    "S1.3",
+    "S1.4"
+   ],
+   "gate": "D0",
+   "gate_substep": "S1.5",
+   "subject": "ASSESSMENT"
+  },
+  {
+   "id": "W1B",
+   "workflow": "WF-01",
+   "substeps": [
+    "S1.6"
+   ],
+   "gate": "D1",
+   "gate_substep": "S1.6",
+   "subject": "WARNORD_1"
+  },
+  {
+   "id": "W2A",
+   "workflow": "WF-02",
+   "substeps": [
+    "S2.1",
+    "S2.2",
+    "S2.3",
+    "S2.4",
+    "S2.5",
+    "S2.6",
+    "S2.7",
+    "S2.8",
+    "S2.9",
+    "S2.10",
+    "S2.11",
+    "S2.12",
+    "S2.13",
+    "S2.14"
+   ],
+   "gate": "D2",
+   "gate_substep": "S2.15",
+   "subject": "MA_BRIEF"
+  },
+  {
+   "id": "W2B",
+   "workflow": "WF-02",
+   "substeps": [
+    "S2.16"
+   ],
+   "gate": "D1",
+   "gate_substep": "S2.16",
+   "subject": "WARNORD_2"
   }
  ]
 }

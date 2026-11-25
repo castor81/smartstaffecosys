@@ -9,7 +9,7 @@ import json
 import pathlib
 import sys
 
-VERSION, DATE = "0.2", "2026-11-25"
+VERSION, DATE = "0.3", "2026-11-25"
 
 # ---------------------------------------------------------------- roles, agents, echelons
 HUMAN_ROLES = {"commander": "Parancsnok", "xo": "Törzsfőnök (XO/COS)", "ops_chief": "Műveleti főnök"}
@@ -37,7 +37,8 @@ ECHELONS = [
      "differences": ["egy integráló cella (FM 6-0 8-23)"]},
     {"id": "brigade", "label": "Dandár", "rank": 2, "status": "pilot", "chief": "XO",
      "procedure": "FM 5-0 MDMP", "cells": ["kis tervező cella", "folyó műveleti cella"],
-     "differences": ["nincs jövő műveletek cella (FM 6-0 8-23, 8-25)",
+     "differences": ["van tervező cella (FM 6-0 8-23; projektdöntés, 2026-11-25)",
+                     "nincs jövő műveletek cella (FM 6-0 8-23, 8-25)",
                      "oltalmazási törzstiszteket az S-3 koordinálja (FM 6-0 2-79)",
                      "tűztámogató tiszt (FSO) az S-3 alatt"]},
     {"id": "division", "label": "Hadosztály", "rank": 3, "status": "prepared", "chief": "COS",
@@ -75,11 +76,18 @@ EXTERNAL = {
 }
 
 # ---------------------------------------------------------------- gates
-def opt(i, label, effect, to=None):
+def opt(i, label, effect, to=None, roles=None):
+    """roles overrides the gate's role for this option (None: only the gate's role)."""
     d = {"id": i, "label": label, "effect": effect}
     if to:
         d["to"] = to
+    if roles:
+        d["roles"] = roles
     return d
+
+
+# A variance that affects the overall direction of the unit is the commander's decision (FM 5-0 6-23).
+MINOR, MAJOR = ["ops_chief", "commander"], ["commander"]
 
 GATES = [
     {"id": "D0", "role": "commander", "title": "Tervezési mód és kezdeti iránymutatás", "fm": "5-25",
@@ -114,10 +122,10 @@ GATES = [
      "options": [opt("approve", "Jóváhagyás", "advance"), opt("fix", "Javításra vissza", "rework", "S7.1"),
                  opt("reject", "Elutasítás, új COA-döntés", "rework", "S6.1")]},
     {"id": "D9", "role": "ops_chief", "title": "Milyen döntést igényel az eltérés?", "fm": "6-21 - 6-23",
-     "options": [opt("none", "Nincs teendő, figyelés folytatása", "loop", "S8.1"),
-                 opt("execution", "Végrehajtási döntés saját hatáskörben", "loop", "S8.1"),
-                 opt("adjust", "Módosító döntés: új COA", "advance"),
-                 opt("newplan", "Új MDMP-ciklus", "new_case")]},
+     "options": [opt("none", "Nincs teendő, figyelés folytatása", "loop", "S8.1", MINOR),
+                 opt("execution", "Végrehajtási döntés saját hatáskörben", "loop", "S8.1", MINOR),
+                 opt("adjust", "Módosító döntés: új COA", "advance", roles=MAJOR),
+                 opt("newplan", "Új MDMP-ciklus", "new_case", roles=MAJOR)]},
     {"id": "D10", "role": "commander", "title": "Módosítás végrehajtása FRAGORD-dal", "fm": "6-32",
      "options": [opt("implement", "Végrehajtás", "advance"), opt("modify", "COA módosítása", "rework", "S8.3"),
                  opt("reject", "Elvetés, figyelés folytatása", "loop", "S8.1")]},
@@ -224,6 +232,21 @@ RULES = [
 ]
 
 
+# Runnable segments of the automated workflows: automated substeps, then one human gate.
+def segment(i, workflow, step, first, last, gate, gate_substep, subject):
+    """subject: the product the human decides on."""
+    return {"id": i, "workflow": workflow, "substeps": [f"{step}.{n}" for n in range(first, last + 1)],
+            "gate": gate, "gate_substep": gate_substep, "subject": subject}
+
+
+SEGMENTS = [
+    segment("W1A", "WF-01", "S1", 1, 4, "D0", "S1.5", "ASSESSMENT"),
+    segment("W1B", "WF-01", "S1", 6, 6, "D1", "S1.6", "WARNORD_1"),
+    segment("W2A", "WF-02", "S2", 1, 14, "D2", "S2.15", "MA_BRIEF"),
+    segment("W2B", "WF-02", "S2", 16, 16, "D1", "S2.16", "WARNORD_2"),
+]
+
+
 def build():
     return {
         "meta": {"name": "SmartStaffEcosys", "version": VERSION, "date": DATE,
@@ -232,7 +255,7 @@ def build():
         "human_roles": HUMAN_ROLES,
         "agents": [dict(zip(["id", "name", "tier", "min_echelon", "enabled"], a)) for a in AGENTS],
         "echelons": ECHELONS, "profiles": PROFILES, "modes": MODES, "rules": RULES,
-        "external_inputs": EXTERNAL, "gates": GATES, "steps": STEPS,
+        "external_inputs": EXTERNAL, "gates": GATES, "steps": STEPS, "segments": SEGMENTS,
     }
 
 
@@ -271,6 +294,8 @@ def validate(p):
         if not any(o["effect"] != "advance" for o in g["options"]):
             errors.append(f"gate {g['id']}: no way to refuse")
         for o in g["options"]:
+            if any(r not in p["human_roles"] for r in o.get("roles", [])):
+                errors.append(f"gate {g['id']}: option {o['id']} has an unknown role")
             if o["effect"] in ("rework", "loop"):
                 target = o.get("to")
                 if target not in order:
@@ -279,18 +304,76 @@ def validate(p):
                 for s in subs:
                     if g["id"] in s.get("gates", []) and order[target] > order[s["id"]]:
                         errors.append(f"gate {g['id']}: target {target} lies after {s['id']}")
+    for seg in p["segments"]:
+        for i in seg["substeps"] + [seg["gate_substep"]]:
+            if i not in order:
+                errors.append(f"segment {seg['id']}: unknown substep {i}")
+        if any(s["run"] == "human" for s in subs if s["id"] in seg["substeps"]):
+            errors.append(f"segment {seg['id']}: contains a human substep")
+        if not any(seg["subject"] in s["outputs"] for s in subs if s["id"] in seg["substeps"]):
+            errors.append(f"segment {seg['id']}: subject {seg['subject']} is not produced in it")
+        if not any(s["id"] == seg["gate_substep"] and seg["gate"] in s.get("gates", []) for s in subs):
+            errors.append(f"segment {seg['id']}: gate {seg['gate']} is not on {seg['gate_substep']}")
     return errors
 
 
 def gate_seed(p):
-    """SQL seed for the gate tables, so the database and the app share one definition."""
+    """SQL seed for the definition tables, so the database and the app share one definition."""
     q = lambda v: "null" if v is None else "'" + v.replace("'", "''") + "'"
+    arr = lambda v: "null" if v is None else "array[" + ", ".join(q(x) for x in v) + "]::text[]"
     lines = [f"-- Generated by tools/build_process.py (process v{VERSION}). Do not edit.", "begin;"]
     for g in p["gates"]:
         lines.append(f"insert into sse.gate_definition values ({q(g['id'])}, {q(g['role'])}, {q(g['title'])});")
         for o in g["options"]:
-            lines.append(f"insert into sse.gate_option values ({q(g['id'])}, {q(o['id'])}, {q(o['label'])}, {q(o['effect'])}, {q(o.get('to'))});")
+            lines.append(f"insert into sse.gate_option values ({q(g['id'])}, {q(o['id'])}, {q(o['label'])}, "
+                         f"{q(o['effect'])}, {q(o.get('to'))}, {arr(o.get('roles'))});")
+    n = 0
+    for st in p["steps"]:
+        for s in st["substeps"]:
+            n += 1
+            lines.append(f"insert into sse.substep values ({q(s['id'])}, {n}, {q(s['name'])}, {q(s['run'])}, "
+                         f"{arr(s['agents'])}, {arr(s['inputs'])}, {arr(s['outputs'])}, {q(s.get('qa'))});")
+    for n, seg in enumerate(p["segments"], 1):
+        lines.append(f"insert into sse.segment values ({q(seg['id'])}, {q(seg['workflow'])}, {n}, "
+                     f"{arr(seg['substeps'])}, {q(seg['gate'])}, {q(seg['gate_substep'])}, {q(seg['subject'])});")
+    prompts = json.loads((pathlib.Path(__file__).resolve().parent.parent / "prompts" / "agents.json").read_text(encoding="utf-8"))
+    lines.append(f"insert into sse.prompt_common (body) values ({q(prompts['common'])});")
+    for a in p["agents"]:
+        if a["enabled"]:
+            lines.append(f"insert into sse.agent values ({q(a['id'])}, {q(a['name'].replace('{p}', 'S'))}, "
+                         f"{q(prompts['roles'][a['id']])});")
     return "\n".join(lines + ["commit;", ""])
+
+
+def demo_setup(version, date):
+    """Fictitious headquarters, login link and one exercise case with the order from exercise/."""
+    root = pathlib.Path(__file__).resolve().parent.parent
+    ex = json.loads((root / "exercise" / f"exercise_order_v{version}_{date}.json").read_text(encoding="utf-8"))
+    body = json.dumps(ex, ensure_ascii=False, indent=1)
+    assert "$ex$" not in body
+    return f"""-- GENERATED by tools/build_process.py. Do not edit.
+-- Fictitious demo headquarters and exercise case. Run as administrator (Supabase SQL editor).
+-- 1) First create a login user: Authentication > Users > Add user.
+-- 2) Replace you@example.com below with that e-mail address, then run the whole file.
+-- One account gets all three roles for testing. In real use give them to different people.
+do $setup$
+declare
+  hq constant uuid := '5e000000-0000-0000-0000-0000000000b1';
+  who uuid;
+  login uuid;
+begin
+  select id into login from auth.users where email = 'you@example.com';
+  if login is null then raise exception 'no login user with this e-mail'; end if;
+  insert into sse.hq (id, name, echelon, staff_prefix)
+  values (hq, 'Fiktív 1. gyakorló dandár', 'brigade', 'S') on conflict (id) do nothing;
+  insert into sse.person (display_name, auth_user_id) values ('Gyakorló felhasználó', login)
+  on conflict (auth_user_id) do nothing;
+  select id into who from sse.person where auth_user_id = login;
+  insert into sse.role_assignment (hq_id, person_id, role)
+  select hq, who, r from unnest(array['commander', 'xo', 'ops_chief']) r on conflict do nothing;
+  perform public.sse_engine_start(hq, 'GYAKORLAT-01', $ex${body}$ex$::jsonb);
+end $setup$;
+"""
 
 
 if __name__ == "__main__":
@@ -305,5 +388,6 @@ if __name__ == "__main__":
     seed = out.parents[2] / "db" / f"sse_gate_seed_v{VERSION}_{DATE}.sql"
     seed.parent.mkdir(exist_ok=True)
     seed.write_text(gate_seed(data), encoding="utf-8")
+    (seed.parent / f"sse_demo_setup_v{VERSION}_{DATE}.sql").write_text(demo_setup(VERSION, DATE), encoding="utf-8")
     n = sum(len(s["substeps"]) for s in data["steps"])
     print(f"OK: {len(data['steps'])} steps, {n} substeps, {len(data['gates'])} gates, {len(data['agents'])} agents -> {out}")

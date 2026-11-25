@@ -1,4 +1,4 @@
--- SmartStaffEcosys schema v0.2 (2026-11-25), PostgreSQL 15+ (tested on 16).
+-- SmartStaffEcosys schema v0.3 (2026-11-25), PostgreSQL 15+.
 -- Defence in depth only: a database owner or superuser can bypass triggers and RLS.
 -- These rules do not make any installation accredited for classified data.
 begin;
@@ -54,7 +54,11 @@ create table hq (
   procedure text not null default 'FM 5-0 MDMP',
   check (parent_id is distinct from id)
 );
-create table person (id uuid primary key default gen_random_uuid(), display_name text not null);
+create table person (
+  id uuid primary key default gen_random_uuid(),
+  display_name text not null,
+  auth_user_id uuid unique  -- login identity; set only by an administrator
+);
 create table role_assignment (
   hq_id uuid not null references hq,
   person_id uuid not null references person,
@@ -70,8 +74,33 @@ create table gate_option (
   label text not null,
   effect text not null check (effect in ('advance', 'revise', 'rework', 'hold', 'loop', 'new_case')),
   target_substep text,
+  roles text[] check (cardinality(roles) > 0),  -- null: only the gate's role
   primary key (gate_code, option_id)
 );
+
+-- ---------------------------------------------------------------- process definition (seeded from process.json)
+create table substep (
+  id text primary key,
+  seq int not null unique,
+  name text not null,
+  run text not null,
+  agents text[] not null,
+  inputs text[] not null,
+  outputs text[] not null,
+  qa text,
+  human boolean generated always as (run = 'human') stored
+);
+create table segment (
+  id text primary key,
+  workflow text not null,
+  seq int not null unique,
+  substeps text[] not null,
+  gate_code text not null references gate_definition,
+  gate_substep text not null references substep,
+  subject text not null
+);
+create table prompt_common (id boolean primary key default true check (id), body text not null);
+create table agent (id text primary key, name text not null, prompt text not null);
 
 -- ---------------------------------------------------------------- planning data
 create table planning_case (
@@ -97,6 +126,7 @@ create table artifact_version (
   artifact_id uuid not null,
   hq_id uuid not null,
   version int not null check (version > 0),
+  substep text references substep,  -- null: external input
   content jsonb not null,
   classification text not null references classification_level,
   author_agent text,
@@ -146,6 +176,7 @@ create table decision_request (
   case_id uuid not null,
   hq_id uuid not null,
   gate_code text not null references gate_definition,
+  substep text references substep,
   subject_version uuid,
   recommendation text,
   payload jsonb not null default '{}',
@@ -156,6 +187,8 @@ create table decision_request (
   foreign key (gate_code, recommendation) references gate_option (gate_code, option_id),
   unique (id, hq_id)
 );
+create unique index one_open_request on decision_request (case_id, gate_code, coalesce(substep, ''))
+  where status in ('pending', 'escalated');
 create table decision_record (
   id bigint generated always as identity primary key,
   request_id uuid not null unique,
@@ -163,23 +196,34 @@ create table decision_record (
   person_id uuid not null references person,
   option_id text not null,
   reason text,
+  guidance text,  -- commander's guidance or intent, written by the human
   decided_at timestamptz not null default now(),
   foreign key (request_id, hq_id) references decision_request (id, hq_id)
 );
 
 create function guard_decision() returns trigger language plpgsql set search_path = sse as $$
-declare r decision_request;
+declare
+  r decision_request;
+  allowed text[];
+  chosen_effect text;
 begin
   select * into r from decision_request where id = new.request_id for update;
   if r.status not in ('pending', 'escalated') then
     raise exception 'request is not open';
   end if;
-  if not exists (select 1 from role_assignment a join gate_definition g on g.role = a.role
-                 where g.code = r.gate_code and a.hq_id = new.hq_id and a.person_id = new.person_id) then
+  select coalesce(o.roles, array[g.role]), o.effect into allowed, chosen_effect
+  from gate_option o join gate_definition g on g.code = o.gate_code
+  where o.gate_code = r.gate_code and o.option_id = new.option_id;
+  if not found then
+    raise exception 'unknown option % for gate %', new.option_id, r.gate_code;
+  end if;
+  if not exists (select 1 from role_assignment a
+                 where a.role = any (allowed) and a.hq_id = new.hq_id and a.person_id = new.person_id) then
     raise exception 'person is not entitled to decide gate %', r.gate_code;
   end if;
-  if not exists (select 1 from gate_option where gate_code = r.gate_code and option_id = new.option_id) then
-    raise exception 'unknown option % for gate %', new.option_id, r.gate_code;
+  if chosen_effect = 'advance' and coalesce(trim(new.guidance), '') = ''
+     and exists (select 1 from substep where id = r.substep and human) then
+    raise exception 'written guidance is required for this decision';
   end if;
   if r.recommendation is distinct from new.option_id and r.recommendation is not null
      and coalesce(trim(new.reason), '') = '' then
@@ -194,9 +238,63 @@ begin
 end $$;
 create trigger decision_guard before insert on decision_record for each row execute function guard_decision();
 
-create function close_request() returns trigger language plpgsql set search_path = sse as $$
+-- Adds a new version of a case artifact and links it to the valid inputs of its substep.
+create function put_version(p_case uuid, p_hq uuid, p_substep text, p_code text, p_content jsonb,
+                            p_agent text default null, p_model text default null)
+returns uuid language plpgsql set search_path = sse as $$
+declare a uuid; v uuid; n int;
 begin
-  update decision_request set status = 'decided' where id = new.request_id;
+  insert into artifact (case_id, hq_id, code) values (p_case, p_hq, p_code) on conflict (case_id, code) do nothing;
+  select id into a from artifact where case_id = p_case and code = p_code;
+  perform pg_advisory_xact_lock(hashtext(a::text));
+  select coalesce(max(version), 0) + 1 into n from artifact_version where artifact_id = a;
+  insert into artifact_version (artifact_id, hq_id, version, substep, content, classification, author_agent, model)
+  values (a, p_hq, n, p_substep, p_content, 'NYILT_GYAKORLO', p_agent, p_model) returning id into v;
+  insert into artifact_dependency (version_id, depends_on, hq_id)
+  select v, l.id, p_hq
+  from substep s
+  cross join lateral unnest(s.inputs) as i(code)
+  cross join lateral (
+    select av.id from artifact_version av join artifact ar on ar.id = av.artifact_id
+    where ar.case_id = p_case and ar.code = i.code and av.id <> v
+      and not exists (select 1 from artifact_invalidation x where x.version_id = av.id)
+    order by av.version desc limit 1) l
+  where s.id = p_substep
+  on conflict do nothing;
+  return v;
+end $$;
+
+-- Applies the consequences of a human decision.
+create function close_request() returns trigger language plpgsql set search_path = sse as $$
+declare r decision_request; o gate_option; here substep; back int; code text; item record;
+begin
+  update decision_request set status = 'decided' where id = new.request_id returning * into r;
+  select * into o from gate_option where gate_code = r.gate_code and option_id = new.option_id;
+  if r.gate_code = 'D0' and o.effect = 'advance' then
+    update planning_case set mode = new.option_id where id = r.case_id;
+  end if;
+  select * into here from substep where id = r.substep;
+  if not found then return null; end if;
+  if o.effect = 'advance' and here.human then
+    foreach code in array here.outputs loop
+      perform put_version(r.case_id, r.hq_id, here.id, code,
+        jsonb_build_object('gate', r.gate_code, 'option', new.option_id, 'guidance', new.guidance));
+    end loop;
+  elsif o.effect in ('rework', 'loop', 'revise') then
+    if o.effect = 'revise' then
+      back := here.seq - case when here.human then 1 else 0 end;
+    else
+      select seq into back from substep where id = o.target_substep;
+    end if;
+    for item in
+      select v.id from artifact_version v
+      join artifact a on a.id = v.artifact_id
+      join substep s on s.id = v.substep
+      where a.case_id = r.case_id and s.seq between back and here.seq
+    loop
+      perform invalidate(item.id, r.gate_code || ' ' || new.option_id);
+    end loop;
+  end if;
   return null;
 end $$;
 create trigger decision_close after insert on decision_record for each row execute function close_request();
@@ -209,9 +307,9 @@ begin
     return new;
   end if;
   if old.status in ('decided', 'cancelled') then raise exception 'request is closed'; end if;
-  if (new.id, new.case_id, new.hq_id, new.gate_code, new.subject_version, new.recommendation, new.payload)
+  if (new.id, new.case_id, new.hq_id, new.gate_code, new.substep, new.subject_version, new.recommendation, new.payload)
      is distinct from
-     (old.id, old.case_id, old.hq_id, old.gate_code, old.subject_version, old.recommendation, old.payload) then
+     (old.id, old.case_id, old.hq_id, old.gate_code, old.substep, old.subject_version, old.recommendation, old.payload) then
     raise exception 'only status and deadline may change';
   end if;
   if new.status = 'decided' and not exists (select 1 from decision_record where request_id = new.id) then
@@ -307,11 +405,36 @@ begin
     execute format('create policy own_hq on sse.%I using (hq_id = sse.current_hq()) with check (hq_id = sse.current_hq())', t);
   end loop;
 end $$;
+-- Organisation tables: own headquarters, its direct subordinates and its parent.
+create function parent_hq(p_hq uuid) returns uuid language sql stable security definer set search_path = sse as
+$$ select parent_id from sse.hq where id = p_hq $$;
+revoke all on function parent_hq(uuid) from public;
+alter table hq enable row level security;
+create policy near_hq on hq for select
+  using (id = current_hq() or parent_id = current_hq() or id = parent_hq(current_hq()));
+alter table role_assignment enable row level security;
+create policy own_roles on role_assignment for select using (hq_id = current_hq());
+alter table person enable row level security;
+create policy own_people on person for select
+  using (exists (select 1 from role_assignment a where a.person_id = person.id));
+
+-- Reference tables: readable by the application, writable only by an administrator.
+do $$
+declare t text;
+begin
+  foreach t in array array['classification_level', 'instance_config', 'gate_definition', 'gate_option',
+                           'substep', 'segment', 'prompt_common', 'agent'] loop
+    execute format('alter table sse.%I enable row level security', t);
+    execute format('create policy read_all on sse.%I for select using (true)', t);
+  end loop;
+end $$;
+
 alter table hq_message enable row level security;
 create policy read_own on hq_message for select using (current_hq() in (from_hq, to_hq));
 create policy send_own on hq_message for insert with check (from_hq = current_hq());
 
 grant usage on schema sse to sse_app;
+grant execute on function parent_hq(uuid) to sse_app;
 grant select on all tables in schema sse to sse_app;
 grant insert on planning_case, artifact, artifact_version, artifact_dependency, artifact_invalidation,
   decision_request, decision_record, model_call, hq_message to sse_app;

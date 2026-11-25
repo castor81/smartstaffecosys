@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>SmartStaffEcosys v0.3 – döntések</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="banner">NYÍLT / GYAKORLÓ – kizárólag fiktív adat · az MI tervezetet készít, a döntés emberé</div>
+  <header>
+    <h1>SmartStaffEcosys</h1>
+    <p class="sub">v0.3 · 2026-11-25 · döntési ablak · <a href="index.html">demó</a></p>
+  </header>
+  <main>
+    <section id="setup" class="card" hidden>
+      <h2>Nincs még adatbázis beállítva</h2>
+      <p>Ez az oldal a Supabase-adatbázishoz kapcsolódik. A kapcsolat adatait a <code>config.js</code> tartalmazza. Addig a szimulált demó használható.</p>
+    </section>
+
+    <section id="login" class="card" hidden>
+      <h2>Belépés</h2>
+      <form id="login-form">
+        <label>E-mail <input id="email" type="email" autocomplete="username" required></label>
+        <label>Jelszó <input id="password" type="password" autocomplete="current-password" required></label>
+        <p id="login-error" class="error" role="alert"></p>
+        <div class="actions"><button class="primary">Belépés</button></div>
+      </form>
+    </section>
+
+    <div id="app" hidden>
+      <section class="card">
+        <p id="who"></p>
+        <p id="conn" class="muted" role="status"></p>
+        <div class="actions">
+          <button id="refresh">Frissítés</button>
+          <button id="notify">Értesítés engedélyezése</button>
+          <button id="logout">Kilépés</button>
+        </div>
+        <p class="muted">Új döntéskérésnél felugró ablak jelenik meg. Értesítés csak nyitott lapnál érkezik.</p>
+      </section>
+      <section class="card">
+        <h2>Döntésre vár</h2>
+        <div id="inbox"></div>
+      </section>
+      <section class="card">
+        <h2>Döntési napló</h2>
+        <ol id="history" class="log"></ol>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="dlg" aria-labelledby="dlg-title">
+    <p id="dlg-meta" class="muted"></p>
+    <h2 id="dlg-title" tabindex="-1" autofocus></h2>
+    <p id="dlg-clock" class="clock"></p>
+    <div id="dlg-warnings"></div>
+    <details id="dlg-subject"><summary>A döntés tárgya (tervezet)</summary><pre id="dlg-content"></pre></details>
+    <fieldset id="dlg-options"></fieldset>
+    <button type="button" id="dlg-reveal" disabled>Törzsajánlás megtekintése</button>
+    <p id="dlg-rec" class="rec" hidden></p>
+    <label id="dlg-guidance-box" hidden>Parancsnoki iránymutatás (kötelező) <textarea id="dlg-guidance" rows="4"></textarea></label>
+    <label>Indoklás (eltérésnél kötelező) <textarea id="dlg-reason" rows="3"></textarea></label>
+    <p id="dlg-error" class="error" role="alert"></p>
+    <div class="actions">
+      <button type="button" id="dlg-ok" class="primary" disabled>Döntés rögzítése</button>
+      <button type="button" id="dlg-later">Később</button>
+    </div>
+  </dialog>
+  <script type="module" src="live.js"></script>
+</body>
+</html>
