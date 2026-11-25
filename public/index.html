@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#0b1210">
-  <title>SmartStaffEcosys v0.4 – harcvezető központ</title>
+  <title>SmartStaffEcosys v0.5 – harcvezető központ</title>
   <link rel="stylesheet" href="cp.css">
 </head>
 <body>
@@ -14,19 +14,21 @@
     <header class="top">
       <div class="brand">
         <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 29 8v10c0 6-6 10-13 12C9 28 3 24 3 18V8z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 9 23 21H9z" fill="currentColor"/></svg>
-        <div><h1>Harcvezető központ</h1><p>SmartStaffEcosys · v0.4 · 2026-11-25</p></div>
+        <div><h1>Harcvezető központ</h1><p id="subtitle">SmartStaffEcosys · v0.5 · 2026-11-25</p></div>
       </div>
       <div class="clockbox"><strong id="clock">–</strong><span id="hhour"></span></div>
       <details class="menu" id="menu">
         <summary aria-label="Menü">⋯</summary>
         <div class="menu-body">
-          <label>Belépett szerep (demó) <select id="role"></select></label>
+          <button type="button" id="shared-open">Közös gyakorlat (belépés)…</button>
+          <a href="./" id="leave" hidden>Vissza a saját (helyi) demóhoz</a>
+          <label>Belépett szerep <select id="role"></select></label>
           <label>Lejátszás sebessége <select id="speed"><option value="3500">lassú</option><option value="2000" selected>normál</option><option value="700">gyors</option></select></label>
-          <a href="process.html">Folyamatnézet (törzsmunka lépései)</a>
+          <a href="process.html" id="process-link">Folyamatnézet (törzsmunka lépései)</a>
           <a href="live.html">Éles döntési ablak (belépéssel)</a>
           <button type="button" id="export-chat">JCHAT mentése (CSV)</button>
           <button type="button" id="export-log">Döntési napló mentése (JSON)</button>
-          <label class="check"><input type="checkbox" id="conf"> Bizalmas+ (egyirányú leállítás)</label>
+          <label class="check" id="conf-row"><input type="checkbox" id="conf"> Bizalmas+ (egyirányú leállítás)</label>
           <button type="button" id="reset" class="danger">Új gyakorlat</button>
         </div>
       </details>
@@ -124,6 +126,28 @@
         <button type="button" id="dlg-later">Később (térkép, JCHAT)</button>
       </div>
     </form>
+  </dialog>
+  <dialog id="join" aria-labelledby="join-head">
+    <h2 id="join-head" tabindex="-1" autofocus>Közös gyakorlat</h2>
+    <p class="muted">A résztvevők ugyanazt a JCHAT-et, térképet és döntéseket látják. Minden közlés a felhőben tárolódik, név szerint, és nem törölhető: kizárólag fiktív adat írható be.</p>
+    <p id="join-setup" hidden>Nincs adatbázis beállítva.</p>
+    <form id="join-login" hidden>
+      <label>E-mail <input id="join-email" type="email" autocomplete="username" required></label>
+      <label>Jelszó <input id="join-password" type="password" autocomplete="current-password" required></label>
+      <div class="actions"><button class="primary">Belépés</button></div>
+    </form>
+    <div id="join-list" hidden>
+      <p id="join-who" class="muted" role="status"></p>
+      <div id="join-rooms" class="rooms"></div>
+      <form id="join-new" hidden>
+        <label>Új gyakorlat neve <input id="join-name" type="text" maxlength="80" required></label>
+        <select id="join-hq" aria-label="Törzs"></select>
+        <div class="actions"><button class="primary">Létrehozás és belépés</button></div>
+      </form>
+      <div class="actions"><button type="button" id="join-refresh">Frissítés</button><button type="button" id="join-logout">Kijelentkezés</button></div>
+    </div>
+    <p id="join-error" class="error" role="alert"></p>
+    <button type="button" id="join-close">Bezárás</button>
   </dialog>
   <script type="module" src="cp.js"></script>
 </body>

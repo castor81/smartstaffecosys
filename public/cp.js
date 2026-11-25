@@ -1,12 +1,16 @@
 // Command post: map in the middle, JCHAT beside it, the staff process running in the background.
 import { createEngine } from './engine.js';
-import { decisionDialog } from './decision.js';
+import { decisionDialog, requestKey } from './decision.js';
 import { store, KEY } from './store.js';
 import { createMap } from './map.js';
-import { timeline, mapModel, elementStates, elementOf, roleElement, channelOf, formatClock, formatH } from './sim.js';
+import { timeline, mapModel, elementStates, elementOf, roleElement, formatClock, formatH } from './sim.js';
+import { channelFor, ackFor, injectMessage, CONTROL_ROLES } from './room.js';
+import { exerciseId, joinDialog, connect, explain } from './shared.js';
+import { signedIn } from './api.js';
 import { ELEMENTS, GROUPS, CHANNELS, UNITS, TERRAIN, TURNS, COAS, INCIDENTS } from './scenario.js';
 
-const UI_VERSION = '0.4';
+const UI_VERSION = '0.5';
+const DEADLINE_MS = 120000;
 const $ = (id) => document.getElementById(id);
 const el = (tag, text, cls) => {
   const node = document.createElement(tag);
@@ -23,9 +27,17 @@ const button = (label, onClick, cls) => {
 
 const process = await (await fetch('data/process.json')).json();
 const saved = store.load();
-let engine = createEngine(process, saved.state);
-let extras = saved.extras || [];
-let removed = saved.removed || [];
+const wanted = exerciseId(); // a shared exercise instead of the local demo
+let link = null; // connection to it
+let engine = createEngine(process, wanted ? undefined : saved.state);
+let extras = wanted ? [] : saved.extras || [];
+let removed = wanted ? [] : saved.removed || [];
+let dialog = null;
+let lastKey = null; // the open request the screen already reacted to
+let popTimer = null;
+let posting = false;
+let submitting = false;
+let escalating = null;
 
 const ui = {
   channel: 'all', element: null, read: {}, reply: null, selected: null, coa: null, wargame: null,
@@ -38,7 +50,11 @@ let wgTimer = null;
 const rendered = new Set();
 let knownIncidents = null;
 
-const persist = () => store.save({ state: engine.state, extras, removed, role: $('role').value, speed: $('speed').value });
+const persist = () => { if (!wanted) store.save({ state: engine.state, extras, removed, role: $('role').value, speed: $('speed').value }); };
+const myRole = () => $('role').value.split(':')[0];
+const myElement = () => (myRole() === 'staff' ? $('role').value.split(':')[1] : roleElement(myRole()));
+/** Who may move the exercise: anybody in the local demo, the command group in a shared one. */
+const controls = () => !wanted || (Boolean(link) && CONTROL_ROLES.includes(myRole()));
 const roleName = (r) => process.human_roles[r];
 const has = (code) => Boolean(engine.valid(code));
 const locked = () => engine.state.status === 'locked';
@@ -53,50 +69,100 @@ function toast(message, ms = 2600) {
 }
 
 const map = createMap($('map'), { onSelect: (ref) => { ui.selected = ref; renderCard(); } });
-const dialog = decisionDialog({
-  engine: () => engine,
-  roleName,
-  onEscalated: () => { persist(); render(); },
-  onDecided: () => {
-    persist();
-    render();
-    if (engine.state.status === 'waiting') dialog.open();
-    else if (ui.resumeAfter && engine.state.status === 'ready') play();
-  },
-});
-
 /* ---------- process control ---------- */
 function stop() {
   ui.playing = false;
   clearTimeout(timer);
 }
-function advance() {
-  if (engine.state.status !== 'ready') return;
+/** May the signed-in role answer the open request? (The local demo can switch roles in the window.) */
+function entitled() {
+  const gate = engine.currentGate();
+  return !wanted || (Boolean(gate) && engine.options(gate).some((o) => engine.rolesFor(gate, o).includes($('role').value)));
+}
+/** Runs after every state change: opens the pop-up for a new request, or resumes the playback. */
+function settle() {
+  const key = requestKey(engine);
+  if (key === lastKey) return;
+  if (wanted && $('dlg').open && !submitting) toast('Közben megváltozott a helyzet: a döntési ablak bezárult.', 4000);
+  lastKey = key;
+  clearTimeout(popTimer);
+  dialog.reset();
+  if (key) {
+    if (ui.playing) { ui.resumeAfter = true; stop(); renderControl(); }
+    // Let the new messages appear before the pop-up covers them.
+    if (entitled()) popTimer = setTimeout(() => requestKey(engine) === key && !$('join').open && dialog.open(), Math.min(1200, Number($('speed').value)));
+  } else if (ui.resumeAfter && engine.state.status === 'ready') {
+    ui.resumeAfter = false;
+    // In a shared exercise somebody else's decision must not close the war game being read.
+    if (!(wanted && ui.wargame)) play();
+  }
+}
+/** Posts one event of the shared exercise; refusals and lost connections are shown, not thrown. */
+async function share(kind, payload, retries = 0) {
+  try {
+    return await link.post(myRole(), kind, payload, retries);
+  } catch (e) {
+    stop();
+    renderControl();
+    toast(explain(e), 5000);
+    return null;
+  }
+}
+async function advance() {
+  if (engine.state.status !== 'ready' || !controls() || posting) return;
+  if (link) {
+    posting = true;
+    await share('advance');
+    posting = false;
+    return;
+  }
   engine.advance();
   persist();
   render();
-  if (engine.state.status === 'waiting') {
-    ui.resumeAfter = ui.playing;
-    stop();
-    renderControl();
-    dialog.reset();
-    // Let the new messages appear before the pop-up covers them.
-    timer = setTimeout(() => dialog.open(), Math.min(1200, Number($('speed').value)));
-  }
+  settle();
 }
 function play() {
-  if (engine.state.status !== 'ready') return;
+  if (engine.state.status !== 'ready' || !controls()) return;
   closeWargame();
   ui.playing = true;
   clearTimeout(timer);
-  const tick = () => {
-    advance();
-    if (ui.playing && engine.state.status === 'ready') timer = setTimeout(tick, Number($('speed').value));
-    else if (ui.playing) { stop(); renderControl(); }
+  const tick = async () => {
+    await advance();
+    if (!ui.playing) return;
+    if (engine.state.status === 'ready') timer = setTimeout(tick, Number($('speed').value));
+    else { stop(); renderControl(); }
   };
   tick();
   renderControl();
 }
+
+const sharedDecisions = {
+  due: () => (link.room.requestedAt ? link.room.requestedAt - link.info.skew : Date.now()) + DEADLINE_MS,
+  escalate() {
+    const key = requestKey(engine);
+    if (!link || !controls() || escalating === key) return;
+    escalating = key;
+    // Not recorded because somebody was faster: the next tick looks again. No retries while offline.
+    link.post(myRole(), 'escalate', { gate: engine.currentGate().id }).then(
+      (ok) => { if (!ok) escalating = null; },
+      () => setTimeout(() => { escalating = null; }, 5000),
+    );
+  },
+  async submit({ option, role, reason, recommended }) {
+    const key = requestKey(engine);
+    const gate = engine.currentGate().id;
+    submitting = true;
+    try {
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        if (requestKey(engine) !== key) throw new Error('Közben megváltozott a helyzet: ez a döntés már nem nyitott.');
+        let ok;
+        try { ok = await link.post(role, 'decide', { gate, option, reason, recommended }); } catch (e) { throw new Error(explain(e)); }
+        if (ok) return;
+      }
+      throw new Error('Nem sikerült rögzíteni, próbáld újra.');
+    } finally { submitting = false; }
+  },
+};
 
 function renderControl() {
   const { state } = engine;
@@ -104,13 +170,13 @@ function renderControl() {
   const gate = engine.currentGate();
   const started = state.log.length > 0;
   $('play').textContent = ui.playing ? '⏸ Szünet' : started ? '▶ Folytatás' : '▶ Indítás';
-  $('play').disabled = state.status !== 'ready';
-  $('step').disabled = state.status !== 'ready' || ui.playing;
+  $('play').disabled = state.status !== 'ready' || !controls();
+  $('step').disabled = state.status !== 'ready' || ui.playing || !controls();
   $('open').hidden = state.status !== 'waiting';
   $('open').textContent = gate && state.status === 'waiting' ? `Döntés vár: ${gate.id}` : 'Döntés vár';
-  $('resume').hidden = state.status !== 'held';
+  $('resume').hidden = state.status !== 'held' || !controls();
   $('status').textContent = {
-    ready: started ? `Következik: ${sub.id} ${sub.name}` : 'A gyakorlat indításra kész.',
+    ready: `${started ? `Következik: ${sub.id} ${sub.name}` : 'A gyakorlat indításra kész.'}${controls() ? '' : ' · vezérli a parancsnoki csoport'}`,
     waiting: gate ? `${gate.title}${state.pending.escalated ? ' · eszkalálva' : ''}` : '',
     held: 'Felfüggesztve: elöljárói jóváhagyásra vár.',
     closed: 'Lezárva: új tervezési ciklus szükséges.',
@@ -122,7 +188,7 @@ function renderControl() {
   $('conf').checked = locked();
   $('conf').disabled = locked();
   $('text').disabled = $('to').disabled = $('composer').querySelector('[type=submit]').disabled = locked();
-  $('inject').disabled = locked();
+  $('inject').disabled = locked() || !controls();
 }
 
 /* ---------- forces ---------- */
@@ -180,7 +246,9 @@ function messageNode(m) {
   const head = el('header');
   const who = el('b', from.short, 'who');
   who.title = from.name;
-  head.append(who, el('span', `→ ${recipientName(m.to)}`, 'to'), el('time', formatClock(m.minute).slice(7)));
+  head.append(who, el('span', `→ ${recipientName(m.to)}`, 'to'));
+  if (m.by) head.append(el('span', m.by, 'by'));
+  head.append(el('time', formatClock(m.minute).slice(7)));
   node.append(head);
   if (m.quote) node.append(el('blockquote', `${m.quote.name}: ${m.quote.text}`));
   node.append(el('p', m.text));
@@ -260,7 +328,7 @@ const setRecipient = (value) => { $('to').value = value; };
 
 function startReply(m) {
   ui.reply = { name: elementOf(m.from).short, text: m.text.length > 90 ? `${m.text.slice(0, 88)}…` : m.text, incidentRef: m.incident?.id || m.incidentRef };
-  setRecipient(m.from === roleElement($('role').value) ? m.to : m.from);
+  setRecipient(m.from === myElement() ? m.to : m.from);
   showQuote();
   $('text').focus();
 }
@@ -276,29 +344,42 @@ function addExtra(message) {
   render();
 }
 function acknowledge(from, to, channel, incidentRef) {
-  const target = elementOf(from);
-  if (target.group === 'command' || target.group === 'excon' || from === to) return;
+  const ack = ackFor(from, to, channel, incidentRef);
+  if (!ack) return;
   const exercise = engine;
   setTimeout(() => {
     if (locked() || exercise !== engine) return;
-    addExtra({ from, to, channel, kind: 'ack', incidentRef, text: 'Vettem, naplóztam. (szimulált nyugtázás – a demó a szöveget nem értelmezi)' });
+    addExtra(ack);
   }, 900);
 }
 
-function send(event) {
+async function send(event) {
   event.preventDefault();
   const body = $('text').value.trim();
-  if (!body || locked()) return;
+  if (!body || locked() || (wanted && !link)) return;
   const to = $('to').value;
-  const from = roleElement($('role').value);
-  const channel = to.startsWith('ch:') ? to.slice(3) : channelOf(to);
-  const quote = ui.reply ? { name: ui.reply.name, text: ui.reply.text } : null;
-  const incidentRef = ui.reply?.incidentRef;
+  const from = myElement();
+  const channel = channelFor(to);
+  const reply = ui.reply;
+  const quote = reply ? { name: reply.name, text: reply.text } : null;
+  const incidentRef = reply?.incidentRef;
   ui.reply = null;
   showQuote();
   $('text').value = '';
   if (ui.channel !== 'all' && ui.channel !== channel) ui.channel = channel;
   if (ui.element && ui.element !== from && ui.element !== to) ui.element = null;
+  if (link) {
+    ui.atBottom = true;
+    if (!(await share('chat', { from, to, text: body, quote, incidentRef }, 5))) {
+      // Not recorded: give the text back instead of losing it.
+      if (!$('text').value) $('text').value = body;
+      ui.reply = reply;
+      showQuote();
+      return;
+    }
+    renderChat(true);
+    return;
+  }
   addExtra({ from, to, channel, kind: 'user', text: body, quote, incidentRef });
   renderChat(true);
   if (!to.startsWith('ch:')) acknowledge(to, from, channel, incidentRef);
@@ -343,7 +424,15 @@ function renderCard() {
         $('text').focus();
       }, 'primary'));
     }
-    actions.append(button('Levétel a térképről', () => { removed.push(inc.id); ui.selected = null; persist(); render(); }));
+    if (controls()) {
+      actions.append(button('Levétel a térképről', () => {
+        ui.selected = null;
+        if (link) { renderCard(); share('remove', { incident: inc.id }, 5); return; }
+        removed.push(inc.id);
+        persist();
+        render();
+      }));
+    }
   } else if (UNITS[ref]) {
     const unit = UNITS[ref];
     const known = ELEMENTS.some((e) => e.id === ref);
@@ -392,10 +481,15 @@ function injectMenu() {
         card.hidden = true;
         toast('Koppints a térképre a helyszín kijelöléséhez.', 6000);
         map.pick((at) => {
-          if (locked()) return;
+          if (locked() || !controls()) return;
           $('toast').hidden = true;
+          if (link) {
+            const spot = [Math.max(0, Math.min(1000, at[0])), Math.max(0, Math.min(700, at[1]))];
+            share('inject', { preset: preset.id, at: spot }, 5);
+            return;
+          }
           const id = `i${Date.now().toString(36)}`;
-          addExtra({ from: 'EXCON', to: preset.to, channel: 'excon', kind: 'inject', incident: { id, title: preset.title, severity: preset.severity, at }, text: `ESEMÉNY: ${preset.title}. ${elementOf(preset.to).name}: intézkedést kérek.` });
+          addExtra(injectMessage(preset, at, id));
           acknowledge(preset.to, 'EXCON', 'excon', id);
         });
       }, `preset sev-${preset.severity}`);
@@ -498,22 +592,53 @@ const stamp = () => new Date().toISOString().slice(0, 10);
 // Quote every cell and defuse spreadsheet formulas.
 const cell = (v) => `"${String(v ?? '').replace(/^[=+\-@\t\r]/, "'$&").replaceAll('"', '""')}"`;
 function exportChat() {
-  const rows = [['gyakorlási idő', 'H-óra', 'háló', 'feladó', 'címzett', 'típus', 'szöveg'],
-    ...picture.messages.map((m) => [formatClock(m.minute), formatH(m.minute), m.channel, elementOf(m.from).name, recipientName(m.to), m.kind, m.text])];
+  const rows = [['gyakorlási idő', 'H-óra', 'háló', 'feladó', 'címzett', 'típus', 'szöveg', 'szerző'],
+    ...picture.messages.map((m) => [formatClock(m.minute), formatH(m.minute), m.channel, elementOf(m.from).name, recipientName(m.to), m.kind, m.text, m.by])];
   download(`sse_jchat_v${UI_VERSION}_${stamp()}.csv`, `﻿${rows.map((r) => r.map(cell).join(';')).join('\r\n')}`, 'text/csv;charset=utf-8');
 }
 
 /* ---------- wiring ---------- */
-$('role').replaceChildren(...Object.keys(process.human_roles).map((r) => new Option(roleName(r), r)));
-$('role').value = saved.role || 'commander';
+const join = joinDialog(process.meta.version);
+function fillRoles() {
+  if (!wanted) {
+    $('role').replaceChildren(...Object.keys(process.human_roles).map((r) => new Option(roleName(r), r)));
+    $('role').value = saved.role || 'commander';
+    return;
+  }
+  // Only the roles of the signed-in person; a staff member chooses whom to speak for.
+  const roles = link?.info.roles || [];
+  const command = Object.keys(process.human_roles).filter((r) => roles.includes(r));
+  const options = command.map((r) => new Option(roleName(r), r));
+  if (roles.includes('staff')) {
+    options.push(...ELEMENTS.filter((e) => e.group === 'staff' || e.group === 'sub').map((e) => new Option(`Törzstag: ${e.short} – ${e.name}`, `staff:${e.id}`)));
+  }
+  $('role').replaceChildren(...options);
+  let last = null;
+  try { last = sessionStorage.getItem('sse-role'); } catch { /* not kept */ }
+  if (options.some((o) => o.value === last)) $('role').value = last;
+  else if (!command.length && roles.includes('staff')) $('role').value = 'staff:A02';
+}
 if (saved.speed) $('speed').value = saved.speed;
 fillRecipients();
 
 $('play').addEventListener('click', () => { if (ui.playing) { stop(); ui.resumeAfter = false; renderControl(); } else play(); });
 $('step').addEventListener('click', () => { closeWargame(); ui.resumeAfter = false; advance(); });
-$('open').addEventListener('click', () => { clearTimeout(timer); dialog.open(); });
-$('resume').addEventListener('click', () => { engine.resume(); persist(); dialog.reset(); render(); dialog.open(); });
-$('role').addEventListener('change', () => { persist(); });
+$('open').addEventListener('click', () => { clearTimeout(popTimer); dialog.open(); });
+$('resume').addEventListener('click', () => {
+  if (link) { share('resume'); return; }
+  engine.resume();
+  persist();
+  render();
+  settle();
+});
+$('role').addEventListener('change', () => {
+  persist();
+  if (!wanted) return;
+  try { sessionStorage.setItem('sse-role', $('role').value); } catch { /* not kept */ }
+  stop();
+  render();
+});
+$('shared-open').addEventListener('click', () => { stop(); renderControl(); $('menu').open = false; join.open(); });
 $('speed').addEventListener('change', persist);
 $('composer').addEventListener('submit', send);
 $('quote').querySelector('button').addEventListener('click', () => { ui.reply = null; showQuote(); });
@@ -581,6 +706,8 @@ $('conf').addEventListener('change', () => {
     closeWargame();
     map.cancelPick();
     engine.lockConfidential();
+    clearTimeout(popTimer);
+    lastKey = null;
     persist();
     $('menu').open = false;
   }
@@ -590,6 +717,8 @@ $('reset').addEventListener('click', () => {
   if (!window.confirm('Új gyakorlat: a közlések, események és döntések törlődnek. Folytatod?')) return;
   stop();
   clearInterval(wgTimer);
+  clearTimeout(popTimer);
+  lastKey = null;
   store.clear();
   engine = createEngine(process);
   extras = [];
@@ -603,10 +732,53 @@ $('reset').addEventListener('click', () => {
   render();
   map.home();
 });
-// The process view (or another tab) changed the shared demo state.
-window.addEventListener('storage', (e) => { if (e.key === KEY) window.location.reload(); });
+// The process view (or another tab) changed the local demo state.
+window.addEventListener('storage', (e) => { if (e.key === KEY && !wanted) window.location.reload(); });
 
-const initial = timeline(process, engine.state.log, extras);
-for (const m of initial.messages) rendered.add(m.id);
-render();
-renderChat(true);
+function showStatus(online, why) {
+  if (!link) return;
+  $('subtitle').textContent = online ? `● ${link.info.title} · ${link.info.person}` : `○ ${why}`;
+  $('subtitle').classList.toggle('off', !online);
+}
+async function start() {
+  if (wanted) {
+    document.body.classList.add('shared');
+    $('banner').textContent = 'NYÍLT / GYAKORLÓ · csak fiktív adat · KÖZÖS, MI nélkül';
+    for (const id of ['reset', 'conf-row', 'process-link']) $(id).hidden = true;
+    $('leave').hidden = false;
+    $('subtitle').textContent = 'Közös gyakorlat: kapcsolódás…';
+    if (signedIn()) {
+      let live = false;
+      try {
+        const made = await connect(process, wanted, {
+          onStatus: showStatus,
+          onChange: () => { if (live) { render(); settle(); } },
+        });
+        ({ engine, extras, removed } = made.room);
+        link = made;
+        document.body.dataset.linked = '1';
+        live = true;
+      } catch (e) { join.open(explain(e)); }
+    } else join.open();
+    if (!link) {
+      $('subtitle').textContent = '○ Nincs kapcsolat';
+      $('subtitle').classList.add('off');
+    }
+  }
+  fillRoles();
+  dialog = decisionDialog({
+    engine: () => engine,
+    roleName,
+    shared: wanted ? sharedDecisions : null,
+    onEscalated: () => { persist(); render(); },
+    onDecided: () => { if (!wanted) { persist(); render(); } settle(); },
+  });
+  showStatus(true);
+  const initial = timeline(process, engine.state.log, extras);
+  for (const m of initial.messages) rendered.add(m.id);
+  render();
+  renderChat(true);
+  // A request that was already open does not pop up again in the local demo; a shared one does.
+  if (!wanted) lastKey = requestKey(engine); else settle();
+}
+await start();

@@ -9,19 +9,20 @@ $R "$B/initdb" -D "$D/data" -U postgres >/dev/null
 $R "$B/pg_ctl" -D "$D/data" -o "-k $D -p 55432 -c listen_addresses=''" -l "$D/log" start >/dev/null
 trap '$R "$B/pg_ctl" -D "$D/data" stop >/dev/null' EXIT
 run() { echo "== ${1##*/}"; psql -q -h "$D" -p 55432 -U postgres -d "$2" -v ON_ERROR_STOP=1 -f - < "$1" 2>&1; }
-for db in schema_test api_test; do
+for db in schema_test api_test shared_test; do
   psql -q -h "$D" -p 55432 -U postgres -c "create database $db"
   run "$HERE/supabase_stub.sql" $db
   run "$HERE"/../sse_schema_*.sql $db
   run "$HERE"/../sse_gate_seed_*.sql $db
   run "$HERE"/../sse_api_*.sql $db
+  run "$HERE"/../sse_shared_*.sql $db
   run "$HERE/test_${db%_test}.sql" $db
 done
 
 # Workflow data flow: demo headquarters + the node scripts against the same functions.
 db=e2e_test
 psql -q -h "$D" -p 55432 -U postgres -c "create database $db"
-for f in "$HERE/supabase_stub.sql" "$HERE"/../sse_schema_*.sql "$HERE"/../sse_gate_seed_*.sql "$HERE"/../sse_api_*.sql; do run "$f" $db; done
+for f in "$HERE/supabase_stub.sql" "$HERE"/../sse_schema_*.sql "$HERE"/../sse_gate_seed_*.sql "$HERE"/../sse_api_*.sql "$HERE"/../sse_shared_*.sql; do run "$f" $db; done
 psql -q -h "$D" -p 55432 -U postgres -d $db -v ON_ERROR_STOP=1 \
   -c "insert into auth.users (id, email) values (gen_random_uuid(), 'you@example.com')"
 run "$HERE"/../sse_demo_setup_*.sql $db

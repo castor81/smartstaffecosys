@@ -24,6 +24,16 @@ select, input[type=text], textarea { background: #0d1615; border: 1px solid var(
 a { color: var(--green); }
 @keyframes glow { 50% { box-shadow: 0 0 14px rgba(242, 180, 65, .65); } }
 
+body.shared #subtitle { color: var(--green); }
+body.shared #subtitle.off { color: var(--red); }
+.msg .by { color: var(--muted); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#join label { display: block; margin: 8px 0; }
+#join input { display: block; width: 100%; margin-top: 3px; font-size: 16px; }
+#join select { max-width: 100%; }
+.rooms { display: flex; flex-direction: column; gap: 6px; max-height: 36dvh; overflow: auto; }
+.rooms .room { text-align: left; }
+.rooms .room small { display: block; color: var(--muted); }
+
 .banner { background: #2c2306; color: var(--amber); text-align: center; font-size: 11px; font-weight: 700; letter-spacing: .04em; padding: 3px 8px; }
 body.locked .banner { background: #3d1413; color: var(--red); }
 
@@ -209,7 +219,7 @@ summary::-webkit-details-marker { display: none; }
 .msg header { display: flex; align-items: baseline; gap: 6px; font-size: 12px; }
 .msg .who { color: var(--c); font-family: var(--mono); }
 .msg .to { color: var(--muted); }
-.msg time { margin-left: auto; color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.msg time { margin-left: auto; color: var(--muted); font-family: var(--mono); font-size: 11px; white-space: nowrap; }
 .msg p { margin: 2px 0; overflow-wrap: anywhere; }
 .msg blockquote { margin: 3px 0; padding: 2px 8px; border-left: 2px solid var(--muted); color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .msg footer { display: flex; gap: 6px; align-items: center; }

@@ -1,5 +1,5 @@
 // Live decision window: login, inbox polling, decision dialog. All rules are enforced by the database.
-import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
+import { configured, signedIn, signIn, signOut as endSession, onExpired, rpc } from './api.js';
 
 const POLL_MS = 15000;
 const $ = (id) => document.getElementById(id);
@@ -9,54 +9,13 @@ const el = (tag, text, cls) => {
   if (cls) n.className = cls;
   return n;
 };
-const SESSION = 'sse-session';
-const store = {
-  get() { try { return JSON.parse(sessionStorage.getItem(SESSION)); } catch { return null; } },
-  set(v) { try { v ? sessionStorage.setItem(SESSION, JSON.stringify(v)) : sessionStorage.removeItem(SESSION); } catch { /* memory only */ } },
-};
-let session = store.get();
 let roles = {};
 let inbox = [];
 let current = null; // request shown in the dialog
 let timer = null;
 const announced = new Set();
 
-async function post(path, body, token) {
-  const headers = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(SUPABASE_URL + path, { method: 'POST', headers, body: JSON.stringify(body) });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    const err = new Error(data?.message || data?.error_description || data?.msg || `HTTP ${res.status}`);
-    err.status = res.status;
-    throw err;
-  }
-  return data;
-}
-
-async function signIn(grant, body) {
-  const t = await post(`/auth/v1/token?grant_type=${grant}`, body);
-  session = { access: t.access_token, refresh: t.refresh_token, until: Date.now() + (t.expires_in - 60) * 1000 };
-  store.set(session);
-}
-
-async function rpc(fn, args = {}) {
-  if (!session) throw new Error('Nincs bejelentkezve.');
-  if (Date.now() > session.until) {
-    try { await signIn('refresh_token', { refresh_token: session.refresh }); } catch (e) {
-      if (e.status) signOut('A munkamenet lejárt, lépj be újra.');
-      throw e;
-    }
-  }
-  try { return await post(`/rest/v1/rpc/${fn}`, args, session.access); } catch (e) {
-    if (e.status === 401) signOut('A munkamenet lejárt, lépj be újra.');
-    throw e;
-  }
-}
-
-function signOut(message = '') {
-  session = null;
-  store.set(null);
+function showLogin(message = '') {
   clearInterval(timer);
   announced.clear();
   inbox = [];
@@ -68,6 +27,7 @@ function signOut(message = '') {
   $('login').hidden = false;
   $('login-error').textContent = message;
 }
+onExpired(showLogin);
 
 // Database refusals shown in Hungarian; unknown messages are shown as they arrive.
 const REFUSALS = {
@@ -190,7 +150,9 @@ async function start() {
     clearInterval(timer);
     timer = setInterval(refresh, POLL_MS);
   } catch (e) {
-    if (session) signOut(`Nem sikerült kapcsolódni: ${e.message}`);
+    if (!signedIn()) return;
+    endSession();
+    showLogin(`Nem sikerült kapcsolódni: ${e.message}`);
   }
 }
 
@@ -198,16 +160,12 @@ $('login-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   $('login-error').textContent = '';
   try {
-    await signIn('password', { email: $('email').value, password: $('password').value });
+    await signIn($('email').value, $('password').value);
   } catch (e) { $('login-error').textContent = `Sikertelen belépés: ${e.message}`; return; }
   $('password').value = '';
   await start();
 });
-$('logout').addEventListener('click', async () => {
-  const token = session?.access;
-  signOut();
-  if (token) await post('/auth/v1/logout', {}, token).catch(() => {});
-});
+$('logout').addEventListener('click', () => { endSession(); showLogin(); });
 $('refresh').addEventListener('click', refresh);
 $('notify').addEventListener('click', async () => {
   const state = window.Notification ? await Notification.requestPermission() : 'unsupported';
@@ -234,11 +192,11 @@ $('dlg-ok').addEventListener('click', async () => {
   current = null;
   await refresh();
 });
-document.addEventListener('visibilitychange', () => { if (!document.hidden && session) refresh(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && signedIn()) refresh(); });
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
+if (!configured) {
   $('setup').hidden = false;
 } else {
   roles = await fetch('data/process.json').then((r) => r.json()).then((p) => p.human_roles).catch(() => ({}));
-  if (session) await start(); else $('login').hidden = false;
+  if (signedIn()) await start(); else $('login').hidden = false;
 }

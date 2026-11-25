@@ -12,8 +12,19 @@ const el = (tag, text, cls) => {
   return node;
 };
 
-export function decisionDialog({ engine, roleName, onEscalated, onDecided }) {
+/** Identifies one open request, so a pop-up never outlives the question it shows. */
+export const requestKey = (e) => (e.state.status === 'waiting'
+  ? `${e.state.pending.queue[0]}:${e.state.log.filter((x) => x.type === 'decision_requested').length}` : null);
+
+/**
+ * `shared` (optional) moves the decision, the escalation and the deadline to a shared exercise:
+ * { submit(args), escalate(), due() }. Without it the local engine is used and the role can be switched.
+ */
+export function decisionDialog({ engine, roleName, onEscalated, onDecided, shared = null }) {
   let due = null;
+  let dueFor = null;
+  let shown = null; // request shown in the open window
+  let busy = false;
   const selected = (gate) => engine().options(gate).find((o) => o.id === $('dlg-form').elements.opt?.value);
 
   function checkRole() {
@@ -21,21 +32,23 @@ export function decisionDialog({ engine, roleName, onEscalated, onDecided }) {
     if (!gate) return;
     const allowed = engine().rolesFor(gate, selected(gate));
     const ok = allowed.includes($('role').value);
-    $('dlg-switch').hidden = ok;
+    $('dlg-switch').hidden = ok || Boolean(shared);
     $('dlg-error').textContent = ok ? '' : `A belépett szerep nem jogosult. Szükséges: ${allowed.map(roleName).join(' vagy ')}.`;
-    $('dlg-ok').disabled = !ok || $('dlg-rec').hidden;
+    $('dlg-ok').disabled = busy || !ok || $('dlg-rec').hidden;
   }
 
   function tick() {
     const e = engine();
-    if (e.state.status !== 'waiting') {
-      due = null;
-      if ($('dlg').open) $('dlg').close();
-      return;
-    }
-    due ??= Date.now() + DEADLINE_MS;
+    const key = requestKey(e);
+    if ($('dlg').open && shown !== key) $('dlg').close(); // decided or replaced meanwhile
+    if (!key) { due = null; return; }
+    if (dueFor !== key) { due = null; dueFor = key; }
+    due ??= shared ? shared.due() : Date.now() + DEADLINE_MS;
     const left = Math.max(0, Math.ceil((due - Date.now()) / 1000));
-    if (left === 0 && !e.state.pending.escalated) { e.escalate(); onEscalated(); }
+    if (left === 0 && !e.state.pending.escalated) {
+      if (shared) shared.escalate();
+      else { e.escalate(); onEscalated(); }
+    }
     $('dlg-clock').textContent = left ? `Hátralévő idő (demó): ${left} mp. Lejáratkor nincs automatikus jóváhagyás.` : 'A határidő lejárt: eszkalálva. A döntés továbbra is emberre vár.';
   }
 
@@ -64,9 +77,10 @@ export function decisionDialog({ engine, roleName, onEscalated, onDecided }) {
     $('dlg-reason').value = '';
     $('dlg-reveal').disabled = true;
     $('dlg-ok').disabled = true;
+    shown = requestKey(engine());
     checkRole();
-    tick();
     $('dlg').showModal();
+    tick();
     $('dlg').scrollTop = 0;
   }
 
@@ -79,15 +93,24 @@ export function decisionDialog({ engine, roleName, onEscalated, onDecided }) {
     $('role').dispatchEvent(new Event('change'));
     checkRole();
   });
-  $('dlg-ok').addEventListener('click', () => {
+  $('dlg-ok').addEventListener('click', async () => {
+    const args = {
+      option: $('dlg-form').elements.opt?.value, role: $('role').value,
+      reason: $('dlg-reason').value, recommended: $('dlg').dataset.rec,
+    };
+    busy = true;
+    $('dlg-ok').disabled = true;
     try {
-      engine().decide({
-        option: $('dlg-form').elements.opt?.value, role: $('role').value,
-        reason: $('dlg-reason').value, recommended: $('dlg').dataset.rec,
-      });
-    } catch (err) { $('dlg-error').textContent = err.message; return; }
+      if (shared) await shared.submit(args); else engine().decide(args);
+    } catch (err) {
+      busy = false;
+      checkRole();
+      $('dlg-error').textContent = err.message;
+      return;
+    }
+    busy = false;
     due = null;
-    $('dlg').close();
+    if ($('dlg').open) $('dlg').close();
     onDecided();
   });
   setInterval(tick, 1000);
