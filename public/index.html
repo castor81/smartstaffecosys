@@ -2,71 +2,117 @@
 <html lang="hu">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex, nofollow">
-  <title>SmartStaffEcosys v0.3 – demó</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta name="theme-color" content="#0b1210">
+  <title>SmartStaffEcosys v0.4 – harcvezető központ</title>
+  <link rel="stylesheet" href="cp.css">
 </head>
 <body>
-  <div id="banner" class="banner">NYÍLT / GYAKORLÓ – kizárólag fiktív adat · szimuláció, MI-hívás nélkül</div>
-  <header>
-    <h1>SmartStaffEcosys</h1>
-    <p class="sub">v0.3 · 2026-11-25 · dandártörzs pilot · <a href="live.html">éles döntési ablak</a></p>
-    <label class="switch"><input type="checkbox" id="conf"> <span>Bizalmas+ (confidential+)</span></label>
-  </header>
-  <main>
-    <section id="lockpanel" class="card lock" hidden>
-      <h2>Bizalmas+ aktív: a példány zárolva</h2>
-      <p>Minden külső adapter tiltva. Ezen a felhős példányon nincs helyi adapter, ezért a feldolgozás leállt. A kapcsoló nem kapcsolható vissza.</p>
-      <p>A kapcsoló nem teszi alkalmassá a felhőt minősített adatra. Ahhoz külön, zárt és akkreditált rendszer kell.</p>
-    </section>
+  <div id="banner" class="banner">NYÍLT / GYAKORLÓ · csak fiktív adat · szimuláció, MI nélkül</div>
+  <div class="cp">
+    <header class="top">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 29 8v10c0 6-6 10-13 12C9 28 3 24 3 18V8z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 9 23 21H9z" fill="currentColor"/></svg>
+        <div><h1>Harcvezető központ</h1><p>SmartStaffEcosys · v0.4 · 2026-11-25</p></div>
+      </div>
+      <div class="clockbox"><strong id="clock">–</strong><span id="hhour"></span></div>
+      <details class="menu" id="menu">
+        <summary aria-label="Menü">⋯</summary>
+        <div class="menu-body">
+          <label>Belépett szerep (demó) <select id="role"></select></label>
+          <label>Lejátszás sebessége <select id="speed"><option value="3500">lassú</option><option value="2000" selected>normál</option><option value="700">gyors</option></select></label>
+          <a href="process.html">Folyamatnézet (törzsmunka lépései)</a>
+          <a href="live.html">Éles döntési ablak (belépéssel)</a>
+          <button type="button" id="export-chat">JCHAT mentése (CSV)</button>
+          <button type="button" id="export-log">Döntési napló mentése (JSON)</button>
+          <label class="check"><input type="checkbox" id="conf"> Bizalmas+ (egyirányú leállítás)</label>
+          <button type="button" id="reset" class="danger">Új gyakorlat</button>
+        </div>
+      </details>
+    </header>
 
-    <section class="card">
-      <h2>Vezérlés</h2>
-      <div class="grid">
-        <label>Törzsszint <select id="echelon"></select></label>
-        <label>Belépett szerep (demó) <select id="role"></select></label>
-      </div>
-      <p id="echinfo" class="muted"></p>
-      <label class="check"><input type="checkbox" id="f-disagree"> Törzsvita szimulálása (D5)</label>
-      <label class="check"><input type="checkbox" id="f-screen"> Szűrési hiba szimulálása (DX)</label>
-      <div class="actions">
-        <button id="run" class="primary">Futtatás a következő döntésig</button>
-        <button id="step">Egy allépés</button>
-        <button id="reset">Új demó-példány</button>
-      </div>
+    <div class="control">
+      <button type="button" id="play" class="primary">▶ Indítás</button>
+      <button type="button" id="step" title="Egy allépés">⏭ Lépés</button>
       <p id="status" class="status" role="status"></p>
-      <button id="open" class="attention" hidden>Döntés vár – ablak megnyitása</button>
-      <button id="resume" hidden>Elöljárói válasz megérkezett</button>
+      <button type="button" id="open" class="attention" hidden>Döntés vár</button>
+      <button type="button" id="resume" class="attention" hidden>Elöljárói válasz megérkezett</button>
+    </div>
+
+    <nav id="forces" class="forces panel" aria-label="Szervezeti elemek"></nav>
+
+    <section id="mappanel" class="mappanel panel" aria-label="Közös műveleti kép">
+      <div id="map" class="map"></div>
+      <div class="map-title">Közös műveleti kép · fiktív terep</div>
+      <div id="coabar" class="coabar" hidden></div>
+      <div class="map-tools">
+        <button type="button" id="fs-map" aria-label="Térkép teljes képernyőn">⛶</button>
+        <button type="button" id="zin" aria-label="Nagyítás">＋</button>
+        <button type="button" id="zout" aria-label="Kicsinyítés">−</button>
+        <button type="button" id="zhome" aria-label="Alaphelyzet">⌂</button>
+        <details class="layers">
+          <summary aria-label="Rétegek">▤</summary>
+          <div class="menu-body">
+            <label class="check"><input type="checkbox" data-layer="units" checked> Saját erők</label>
+            <label class="check"><input type="checkbox" data-layer="enemy" checked> Ellenség</label>
+            <label class="check"><input type="checkbox" data-layer="plan" checked> Tervjelek</label>
+            <label class="check"><input type="checkbox" data-layer="incidents" checked> Események</label>
+          </div>
+        </details>
+      </div>
+      <div class="map-actions">
+        <button type="button" id="wg-open" disabled>⚔ Hadijáték</button>
+        <button type="button" id="inject">＋ Esemény</button>
+      </div>
+      <div class="scalebar"><i id="scale-line"></i><span>5 km</span></div>
+      <aside id="card" class="mapcard" hidden></aside>
+      <div id="wargame" class="wargame" hidden>
+        <div class="wg-head"><strong id="wg-name"></strong><button type="button" id="wg-close" aria-label="Hadijáték bezárása">✕</button></div>
+        <div id="wg-coas" class="seg"></div>
+        <div class="wg-turn">
+          <button type="button" id="wg-prev" aria-label="Előző forduló">◀</button>
+          <input type="range" id="wg-range" min="0" max="4" step="1" value="0" aria-label="Forduló">
+          <button type="button" id="wg-next" aria-label="Következő forduló">▶</button>
+          <button type="button" id="wg-auto">Lejátszás</button>
+        </div>
+        <p id="wg-own"></p>
+        <p id="wg-red"></p>
+        <p class="note">Vázlatos mozgásjáték előre megírt helyzetekkel; nem harcérték-számítás.</p>
+      </div>
+      <div id="lockpanel" class="lockpanel" hidden>
+        <h2>Bizalmas+ aktív: a példány zárolva</h2>
+        <p>Minden külső adapter tiltva. Ezen a felhős példányon nincs helyi adapter, ezért a feldolgozás leállt. A kapcsoló nem kapcsolható vissza.</p>
+        <p>A kapcsoló nem teszi alkalmassá a felhőt minősített adatra. Ahhoz külön, zárt és akkreditált rendszer kell.</p>
+      </div>
     </section>
 
-    <section class="card">
-      <h2>Folyamat</h2>
-      <div id="steps"></div>
+    <section id="chat" class="chat panel" aria-label="JCHAT">
+      <div class="chat-head">
+        <h2>JCHAT</h2>
+        <button type="button" id="filter" class="chip-x" hidden></button>
+        <button type="button" id="fs-chat" aria-label="JCHAT teljes képernyőn">⛶</button>
+      </div>
+      <div id="channels" class="channels" role="tablist" aria-label="Hálók"></div>
+      <div id="feed" class="feed" aria-live="polite"></div>
+      <button type="button" id="newer" class="newer" hidden>▼ Új közlések</button>
+      <form id="composer" class="composer">
+        <div id="quote" class="quote" hidden><span></span><button type="button" aria-label="Idézet törlése">✕</button></div>
+        <div class="row">
+          <select id="to" aria-label="Címzett"></select>
+          <input id="text" type="text" maxlength="400" autocomplete="off" placeholder="Közlés (csak fiktív adat)" aria-label="Közlés szövege">
+          <button type="submit" class="primary" aria-label="Küldés">➤</button>
+        </div>
+      </form>
     </section>
-
-    <section class="card">
-      <h2>Döntési és eseménynapló</h2>
-      <ol id="log" class="log"></ol>
-      <button id="export">Napló mentése (JSON)</button>
-    </section>
-
-    <section class="card">
-      <h2>Agentek ezen a szinten</h2>
-      <ul id="agents"></ul>
-    </section>
-
-    <section class="card">
-      <h2>Telepítési profilok</h2>
-      <div id="profiles" class="grid"></div>
-    </section>
-  </main>
+  </div>
+  <div id="toast" class="toast" role="status" hidden></div>
 
   <dialog id="dlg" aria-labelledby="dlg-title">
     <form method="dialog" id="dlg-form">
       <p id="dlg-meta" class="muted"></p>
       <h2 id="dlg-title" tabindex="-1" autofocus></h2>
-      <p id="dlg-clock" class="clock"></p>
+      <p id="dlg-clock" class="muted"></p>
       <fieldset id="dlg-options"><legend>Alternatívák</legend></fieldset>
       <button type="button" id="dlg-reveal" disabled>Törzsajánlás megtekintése</button>
       <p id="dlg-rec" class="rec" hidden></p>
@@ -75,10 +121,10 @@
       <button type="button" id="dlg-switch" hidden>Váltás a jogosult szerepre (demó)</button>
       <div class="actions">
         <button type="button" id="dlg-ok" class="primary" disabled>Döntés rögzítése</button>
-        <button type="button" id="dlg-later">Később</button>
+        <button type="button" id="dlg-later">Később (térkép, JCHAT)</button>
       </div>
     </form>
   </dialog>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="cp.js"></script>
 </body>
 </html>

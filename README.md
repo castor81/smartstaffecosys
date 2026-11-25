@@ -1,6 +1,8 @@
-# SmartStaffEcosys v0.3 (2026-11-25)
+# SmartStaffEcosys v0.4 (2026-11-25)
 
-Katonai törzs tervezési folyamatának (MDMP) fejlesztési alapja: gépi folyamatleírás, adatbázis belépéssel és döntési kapukkal, n8n-futtató az első két szakaszra, valamint webes demó és döntési ablak. A pilot szint a dandártörzs.
+Katonai törzs tervezési folyamatának (MDMP) fejlesztési alapja: harcvezető központ nézet (térkép, JCHAT, döntési ablak), gépi folyamatleírás, adatbázis belépéssel és döntési kapukkal, valamint n8n-futtató az első két szakaszra. A pilot szint a dandártörzs.
+
+Verziók: webfelület v0.4; folyamatdefiníció, adatbázis, promptok és n8n-futtató változatlanul v0.3.
 
 **Csak nyílt vagy fiktív adat.** A tároló nem tartalmazhat minősített, nem nyilvános vagy személyes adatot, sem forrás-PDF-eket. A gyakorló parancs teljesen kitalált.
 
@@ -8,7 +10,8 @@ Katonai törzs tervezési folyamatának (MDMP) fejlesztési alapja: gépi folyam
 
 | Elem | Állapot |
 | --- | --- |
-| Folyamatdefiníció, motor, szimulált demó | tesztelve |
+| Harcvezető központ (`index.html`) | szimuláció előre megírt fiktív üzenetekkel; 390 px-től 1600 px-ig tesztelve |
+| Folyamatdefiníció, motor, folyamatnézet | tesztelve |
 | Adatbázis-séma, API, jogosultságok | helyi PostgreSQL 16-on, Supabase-helyettesítővel tesztelve; Supabase-re még nincs telepítve |
 | Döntési ablak (`live.html`) | helyi adatbázissal tesztelve; a `config.js` még üres |
 | n8n-futtató (WF-01, WF-02) | vázlatként elkészült, nincs publikálva; szimulált adatokkal lefutott, valódi modellhívás még nem volt |
@@ -19,7 +22,11 @@ Katonai törzs tervezési folyamatának (MDMP) fejlesztési alapja: gépi folyam
 | --- | --- |
 | `tools/build_process.py` | A folyamat egyetlen forrása; ellenőrzi és generálja a JSON-t, a seedet és a demóadatot |
 | `public/data/process.json` | 8 szakasz, 55 allépés, 12 döntési kapu, agentek, törzsszintek, profilok |
-| `public/index.html` | Szimulált demó (nincs háttérszolgáltatás, nincs MI-hívás) |
+| `public/index.html`, `cp.js`, `cp.css` | Harcvezető központ (nincs háttérszolgáltatás, nincs MI-hívás) |
+| `public/map.js` | Fiktív terep SVG-ben: nagyítás, mozgatás, jelek |
+| `public/scenario.js` | Fiktív forgatókönyv: elemek, hálók, üzenetek, COA-vázlatok, események |
+| `public/sim.js` | A JCHAT és a térképi helyzet levezetése a motor naplójából |
+| `public/process.html` | Háttérnézet: a törzsmunka lépései, napló, agentek, profilok |
 | `public/live.html` | Belépéses döntési ablak az adatbázishoz |
 | `prompts/agents.json` | Az agentek rendszerpromptjai |
 | `exercise/` | Fiktív gyakorló parancs és helyzetadatok |
@@ -39,6 +46,18 @@ node --test tests/*.test.mjs            # motortesztek (Node 20+)
 bash db/test/run.sh                     # séma-, API- és adatfolyam-teszt (PostgreSQL 16)
 python3 -m http.server -d public 8000   # http://localhost:8000
 ```
+
+## Harcvezető központ
+
+A TERDEF wargaming platform felépítését követi (központi térkép, JCHAT, szervezeti elemek állapotjelzővel, térképi események, teljes képernyős panelek), saját kóddal és fiktív tereppel.
+
+- **▶ Indítás**: a törzsfolyamat a háttérben lép; a közlések a JCHAT-ben, a változások a térképen jelennek meg. Emberi döntésnél megáll és felugró ablakban kér döntést; döntés után folytatódik.
+- **Térkép**: saját és ellenséges erők, megközelítési irányok, megfigyelési körzetek, COA-vázlatok, a parancs vonalai, eltérések. Egység, átkelőhely vagy esemény érintésére adatlap nyílik.
+- **JCHAT**: hálók, olvasatlan-jelzés, elem szerinti szűrés, válasz idézettel, térképi hivatkozás, CSV-mentés.
+- **Hadijáték**: a COA-k ötfordulós vázlatos lejátszása. Nem harcérték-számítás.
+- **＋ Esemény**: gyakorlatvezetői esemény elhelyezése a térképen.
+
+Határok: minden közlés, helyzet és mozgás előre megírt. A beírt szöveget semmi nem értelmezi, a nyugtázás szimulált. Az állapot egyetlen böngészőben él, több résztvevő még nem látja egymást; ahhoz adatbázis-oldali üzenettábla kell. A térképjelek egyszerűsítettek, nem teljes APP-6 jelkészlet.
 
 ## Telepítés
 
@@ -67,6 +86,8 @@ Egyirányú kapcsoló: bekapcsolva minden külső adapter tiltott, és helyi ada
 ## Ismert korlátok
 
 - Csak az 1. és 2. MDMP-szakasz van automatizálva.
+- A harcvezető központ még nincs összekötve az adatbázissal és a futtatóval.
+- A harcvezető központ a dandár pilothoz készült; más törzsszint csak a folyamatnézetben választható.
 - A közösen írt produktumokat még nem fésüli össze integráló lépés: a hozzájárulások egymás mellett állnak.
 - Nincs tudásbázis-keresés; az agentek a doktrínáknak csak a hivatkozását kapják.
 - Két egyidejű futtatás ugyanazt a szakaszt kétszer dolgozhatja fel (nyitott döntéskérés ekkor is csak egy lehet).
